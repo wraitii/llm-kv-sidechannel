@@ -59,12 +59,18 @@ seed, 2,000 finetuning steps, and endpoint-only FEN supervision:
 | `full.json` | Full attention | Full attention |
 | `swa32.json` | Window 32 | Window 32 |
 | `swa-variable.json` | Window uniformly sampled from 16–48 | Window 32 |
+| `fixed-sparse-uniform16x16.json` | 16 recent + 16 uniformly placed older KVs | Same fixed sparse policy |
+| `fixed-sparse-log16x16.json` | 16 recent + 16 logarithmically placed older KVs | Same fixed sparse policy |
 | `memento.json` | Ordinary survivors, recursive masks | Same mask family |
 | `memento-swa32.json` | Ordinary survivors + SWA-32 | Both constraints |
 | `memento-carriers.json` | Inserted carriers, recursive masks | Same mask family + carriers |
 | `scored.json` | 24 recent + 8 older entries per layer | Same scored budget |
 
-SWA-32 and scored 24+8 have the same maximum number of visible entries per layer.
+SWA-32, fixed sparse 16+16, and scored 24+8 expose the same maximum number of
+source entries to the target. Fixed sparse is an endpoint-memory intervention:
+source tokens first build ordinary causal KVs, then non-survivors are hidden
+from target queries. It therefore matches endpoint capacity, not source-side
+attention compute, and deliberately preserves the contextual-KV channel.
 Memento masks have a variable visible-token budget. Inserted carriers also alter
 sequence length and the number of original moves covered by a fixed window;
 those comparisons should not be described as matched-compute experiments.

@@ -10,7 +10,7 @@ import mlx.core as mx
 import numpy as np
 
 from .model import PrefixLM
-from .tokenizer import EOS, PairTokenizer
+from .tokenizer import PairTokenizer
 from .runtime import load_config, model_and_tokenizer
 from .train import latest_checkpoint, load_model_checkpoint
 

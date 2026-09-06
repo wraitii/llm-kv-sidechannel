@@ -15,7 +15,7 @@ from .tokenizer import EOS, PairTokenizer
 from .runtime import load_config, model_and_tokenizer
 from .train import latest_checkpoint, load_model_checkpoint
 from .model import PrefixLM
-from .transport import RecursiveCarrierPolicy, policy_from_config
+from .transport import FixedSparsePolicy, RecursiveCarrierPolicy, policy_from_config
 
 
 def generate_batch(model: PrefixLM, tokenizer: PairTokenizer, rows: list[dict],
@@ -91,13 +91,36 @@ def main() -> None:
     parser.add_argument("--disable-scoring", action="store_true", help="evaluate a scored checkpoint with ordinary full/SWA attention")
     parser.add_argument("--scored-recent-window", type=int,
                         help="override the scored model's recent window for a budget sweep")
+    parser.add_argument("--scored-budget", type=int,
+                        help="override scored eviction with an even total budget split equally between recent and memory tokens")
+    parser.add_argument("--fixed-sparse-budget", type=int,
+                        help="override a fixed-sparse policy with an even total budget split equally between recent and memory tokens")
     args = parser.parse_args()
     cfg = load_config(args.config)
+    if args.scored_recent_window is not None and args.scored_budget is not None:
+        parser.error("--scored-recent-window and --scored-budget are mutually exclusive")
     if args.scored_recent_window is not None:
         if args.scored_recent_window < 1 or not cfg.get("scored_eviction"):
             parser.error("--scored-recent-window requires scored_eviction and a positive value")
         cfg["scored_eviction"] = {
             **cfg["scored_eviction"], "recent_window": args.scored_recent_window}
+    if args.scored_budget is not None:
+        if (not cfg.get("scored_eviction")
+                or args.scored_budget < 2
+                or args.scored_budget % 2):
+            parser.error("--scored-budget requires scored_eviction and a positive even budget")
+        half = args.scored_budget // 2
+        cfg["scored_eviction"] = {
+            **cfg["scored_eviction"], "recent_window": half, "memory_tokens": half}
+    if args.fixed_sparse_budget is not None:
+        policy_cfg = cfg.get("transport_policy") or {}
+        if (policy_cfg.get("kind") != "fixed_sparse"
+                or args.fixed_sparse_budget < 2
+                or args.fixed_sparse_budget % 2):
+            parser.error("--fixed-sparse-budget requires a fixed_sparse config and a positive even budget")
+        half = args.fixed_sparse_budget // 2
+        cfg["transport_policy"] = {
+            **policy_cfg, "recent_tokens": half, "memory_tokens": half}
     model, tokenizer = model_and_tokenizer(cfg)
     carrier_policy = policy_from_config(cfg.get("transport_policy"))
     if args.no_carriers and isinstance(carrier_policy, RecursiveCarrierPolicy):
@@ -178,6 +201,12 @@ def main() -> None:
                           if not args.disable_scoring else None,
                           "scored_memory_tokens": (cfg.get("scored_eviction") or {}).get("memory_tokens")
                           if not args.disable_scoring else None,
+                          "fixed_sparse_strategy": carrier_policy.strategy
+                          if isinstance(carrier_policy, FixedSparsePolicy) else None,
+                          "fixed_sparse_recent_tokens": carrier_policy.recent_tokens
+                          if isinstance(carrier_policy, FixedSparsePolicy) else None,
+                          "fixed_sparse_memory_tokens": carrier_policy.memory_tokens
+                          if isinstance(carrier_policy, FixedSparsePolicy) else None,
                           "carriers": isinstance(carrier_policy, RecursiveCarrierPolicy),
                           "seed": args.seed, "split": args.split, "examples": len(rows), "skipped_overlong": skipped,
                           "parseable": parsed, "valid": valid, "exact": exact,

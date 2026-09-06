@@ -16,7 +16,7 @@ from .data import CachedPairDataset, MixedPairDataset, PairDataset
 from .board_eval import score_board_outputs
 from .model import PrefixLM
 from .tokenizer import EOS, PairTokenizer
-from .runtime import dtype_for, load_config, model_and_tokenizer
+from .runtime import load_config, model_and_tokenizer
 from .transport import RecursiveCarrierPolicy, policy_from_config
 from .carriers import expand_batch
 from .experiment import training_batch, record_run

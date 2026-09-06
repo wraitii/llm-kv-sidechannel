@@ -141,12 +141,93 @@ def max_carrier_tokens(policy_config: dict | None,
     return periods * c_hi
 
 
-def policy_from_config(config: dict | None) -> RecursiveBlockPolicy | None:
-    """Resolve one of the supported move-aligned transport policies."""
+@dataclass(frozen=True)
+class FixedSparsePolicy:
+    """Keep a fixed recent tail plus content-independent older memory tokens.
+
+    All source tokens retain ordinary causal access while their KVs are built.
+    After the source boundary, only ``recent_tokens`` contiguous tokens and
+    ``memory_tokens`` older tokens remain visible. Older memory is placed either
+    uniformly across history or logarithmically, with logarithmic placement
+    denser near the recent tail. This is an endpoint-memory policy rather than a
+    streaming eviction policy.
+    """
+
+    recent_tokens: int = 16
+    memory_tokens: int = 16
+    strategy: str = "uniform"
+    alignment: str = "token"
+
+    def __post_init__(self) -> None:
+        if self.alignment != "token":
+            raise ValueError("fixed_sparse requires alignment='token'")
+        if self.recent_tokens < 1:
+            raise ValueError("recent_tokens must be positive")
+        if self.memory_tokens < 1:
+            raise ValueError("memory_tokens must be positive")
+        if self.strategy not in {"uniform", "log"}:
+            raise ValueError("fixed_sparse strategy must be 'uniform' or 'log'")
+
+    def _memory_indices(self, old_count: int) -> np.ndarray:
+        count = min(self.memory_tokens, old_count)
+        if count == old_count:
+            return np.arange(old_count, dtype=np.int32)
+        if self.strategy == "uniform":
+            # Select bin centers for equal coverage without endpoint bias.
+            return np.floor(
+                (np.arange(count) + 0.5) * old_count / count).astype(np.int32)
+        # Logarithmic backward distances give broad historical coverage while
+        # placing more slots near the recent tail. Constrained rounding keeps
+        # the requested number of indices distinct even for short histories.
+        targets = old_count - np.geomspace(old_count, 1, count)
+        selected = np.empty(count, dtype=np.int32)
+        previous = -1
+        for index, target in enumerate(targets):
+            lower = previous + 1
+            upper = old_count - (count - index)
+            selected[index] = int(np.clip(np.rint(target), lower, upper))
+            previous = int(selected[index])
+        return selected
+
+    def sample(self, source_lengths: np.ndarray,
+               rng: np.random.Generator) -> np.ndarray:
+        """Return spans hidden after the final source token in each row."""
+        del rng  # The policy is deliberately deterministic and content-free.
+        rows = []
+        for length in source_lengths.tolist():
+            recent_start = max(0, length - self.recent_tokens)
+            kept = set(self._memory_indices(recent_start).tolist())
+            kept.update(range(recent_start, length))
+            spans = []
+            start = None
+            for position in range(length + 1):
+                hidden = position < length and position not in kept
+                if hidden and start is None:
+                    start = position
+                elif not hidden and start is not None:
+                    spans.append((start, position, length - 1))
+                    start = None
+            rows.append(spans)
+        width = max((len(spans) for spans in rows), default=0)
+        result = np.full((len(rows), width, 3), -1, dtype=np.int32)
+        for row, spans in enumerate(rows):
+            if spans:
+                result[row, :len(spans)] = spans
+        return result
+
+
+def policy_from_config(config: dict | None) -> RecursiveBlockPolicy | FixedSparsePolicy | None:
+    """Resolve one of the supported transport policies."""
     if not config or config.get("kind", "none") == "none":
         return None
     kind = config.get("kind")
     alignment = config.get("alignment")
+    if kind == "fixed_sparse":
+        return FixedSparsePolicy(
+            recent_tokens=config.get("recent_tokens", 16),
+            memory_tokens=config.get("memory_tokens", 16),
+            strategy=config.get("strategy", "uniform"),
+            alignment=alignment)
     if alignment != "move":
         raise ValueError("transport policies require alignment='move'")
     config = dict(config)

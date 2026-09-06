@@ -1,8 +1,9 @@
 import mlx.core as mx
 import numpy as np
+import pytest
 
 from llmz.model import same_pass_transport_mask
-from llmz.transport import RecursiveBlockPolicy, policy_from_config
+from llmz.transport import FixedSparsePolicy, RecursiveBlockPolicy, policy_from_config
 
 
 def test_transport_mask_keeps_carrier_but_hides_its_span_from_future():
@@ -81,10 +82,59 @@ def test_recursive_blocks_sample_sizes_uniformly_per_period():
 
 
 def test_recursive_blocks_rejects_bad_ranges():
-    import pytest
     with pytest.raises(ValueError):
         RecursiveBlockPolicy(hidden_tokens=[5, 3])
     with pytest.raises(ValueError):
         RecursiveBlockPolicy(survivor_tokens=[0, 2])
     with pytest.raises(ValueError):
         RecursiveBlockPolicy(gap_tokens=[1, 2, 3])
+
+
+def _visible_after_source(policy, length):
+    spans = policy.sample(np.array([length]), np.random.default_rng(0))[0]
+    hidden = set()
+    for start, end, visible_until in spans:
+        if start >= 0:
+            assert visible_until == length - 1
+            hidden.update(range(start, end))
+    return [index for index in range(length) if index not in hidden]
+
+
+def test_fixed_sparse_uniform_keeps_exact_recent_and_memory_budgets():
+    policy = FixedSparsePolicy(recent_tokens=16, memory_tokens=16,
+                               strategy="uniform")
+    visible = _visible_after_source(policy, 100)
+    assert len(visible) == 32
+    assert visible[-16:] == list(range(84, 100))
+    assert visible[:16] == sorted(visible[:16])
+    assert visible[0] < 5 and visible[15] > 79
+
+
+def test_fixed_sparse_log_is_denser_near_recent_tail():
+    uniform = _visible_after_source(
+        FixedSparsePolicy(strategy="uniform"), 100)[:16]
+    logarithmic = _visible_after_source(
+        FixedSparsePolicy(strategy="log"), 100)[:16]
+    assert logarithmic[0] == 0
+    assert logarithmic[-1] == 83
+    assert len(set(logarithmic)) == 16
+    assert sum(index >= 64 for index in logarithmic) > sum(
+        index >= 64 for index in uniform)
+
+
+def test_fixed_sparse_short_sources_remain_fully_visible():
+    policy = FixedSparsePolicy(recent_tokens=16, memory_tokens=16)
+    assert _visible_after_source(policy, 32) == list(range(32))
+    assert _visible_after_source(policy, 12) == list(range(12))
+
+
+def test_fixed_sparse_config_validation():
+    policy = policy_from_config({"kind": "fixed_sparse", "alignment": "token",
+                                 "recent_tokens": 16, "memory_tokens": 16,
+                                 "strategy": "log"})
+    assert isinstance(policy, FixedSparsePolicy)
+    with pytest.raises(ValueError, match="alignment='token'"):
+        policy_from_config({"kind": "fixed_sparse", "alignment": "move"})
+    with pytest.raises(ValueError, match="strategy"):
+        policy_from_config({"kind": "fixed_sparse", "alignment": "token",
+                            "strategy": "random"})

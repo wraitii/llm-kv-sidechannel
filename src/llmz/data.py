@@ -29,8 +29,9 @@ def batch_examples(examples: list[tuple]) -> dict[str, np.ndarray]:
               source_token_count, target_token_count) in enumerate(examples):
         length = len(sequence) - 1
         target_start = length - target_token_count
+        target_output = np.asarray([*target_local, EOS], dtype=np.int32)
         x[row, :length] = sequence[:-1]
-        y[row, target_start:length] = np.array([*target_local, EOS], dtype=np.int32)
+        y[row, target_start:length] = target_output
         valid[row, :length] = True
         loss_mask[row, target_start:length] = 1.0
         prefix_lengths[row] = target_start + int(target_start > sep_index)
@@ -40,7 +41,7 @@ def batch_examples(examples: list[tuple]) -> dict[str, np.ndarray]:
         target_tokens[row] = target_token_count
         output_positions[row, :target_token_count] = np.arange(
             target_start, target_start + target_token_count, dtype=np.int32)
-        output_y[row, :target_token_count] = np.array([*target_local, EOS], dtype=np.int32)
+        output_y[row, :target_token_count] = target_output
         output_mask[row, :target_token_count] = 1.0
     return {"x": x, "y": y, "loss_mask": loss_mask, "valid": valid,
             "prefix_lengths": prefix_lengths, "target_bytes": target_bytes,
@@ -68,7 +69,7 @@ class PairDataset:
     def __len__(self) -> int:
         return len(self.rows)
 
-    def encode(self, index: int) -> tuple[list[int], int, int, int, int, int]:
+    def encode(self, index: int) -> tuple[list[int], list[int], int, int, int, int, int]:
         row = self.rows[index]
         source = self.tokenizer.encode_source(row["asm"])
         target_local = self.tokenizer.encode_target_local(row["code"])
