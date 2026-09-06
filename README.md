@@ -1,0 +1,256 @@
+# llm-pseudorecurrent
+
+Experiments on information carried from evicted tokens into surviving Transformer
+KVs. The controlled task is UCI move history → terminal FEN, using a small MLX
+causal Transformer and separate source/target BPE vocabularies.
+
+The central comparison is whether ordinary-token representations can serve as
+useful memory when training and inference restrict direct access to old tokens.
+Dedicated carrier tokens are an optional experimental condition.
+
+## Implemented conditions
+
+- **Full causal attention**, including a continued-finetuning control.
+- **Fixed SWA** and **variable SWA**. Variable SWA samples one window per example;
+  it does not fluctuate within a sequence.
+- **Memento-style masks on ordinary tokens**: contiguous hidden blocks followed
+  by surviving ordinary tokens, optionally with recursive survivor eviction.
+- **Inserted carriers**: model-only scratch tokens after hidden blocks. These
+  add positions and computation; they are not textual summaries.
+- **Learned scored eviction**: each layer protects its recent `W` positions and
+  retains up to `M` older entries. When a token exits the recent window, it
+  competes with the previous memory entries. Scores depend on the cached value
+  representation and the current layer input. Existing memory is reconsidered
+  at every step; previously deleted entries cannot return. No retained KV is
+  rewritten during normal inference.
+
+The default Memento configs are **move-aligned**: `alignment: "move"`,
+`hidden_moves: [2,3]`, `gap_moves: [0,1]`, and (for ordinary survivors)
+`survivor_moves: 1`. Source block sizes are measured in complete UCI moves,
+including promotion suffixes and following whitespace. Carrier counts remain
+scratch-token counts. Boundaries are recovered from existing source tokens;
+no retokenization or cache rebuilding is needed.
+
+Ordinary survivor moves remain whole through every recursion level; `group_size`
+counts survivor moves in that condition. In the explicit-carrier condition it
+counts scratch tokens. With `alignment: "token"`, the original `hidden_tokens`,
+`survivor_tokens`, and `gap_tokens` fields restore the token-based control.
+Legacy configs without `alignment` retain token semantics so old checkpoints can
+still be evaluated using their saved `runs/.../config.json`.
+
+Move-aligned configs write to `runs/controlled-memento-moves`,
+`runs/controlled-memento-swa32-moves`, and `runs/controlled-memento-carriers-moves`.
+Existing token-based runs and sweep results are unchanged. Alignment prevents
+partial moves, but does not guarantee that a block is a semantically complete
+reasoning episode. SWA itself is still measured in tokens.
+
+For token-based policies, `group_size` counts **individual survivor tokens** in both recursive policies.
+The carrier policy previously counted groups, so old carrier checkpoints were
+trained under different geometry. Both policies now share the recursion code.
+Intervening ordinary tokens can also relay information: these masks impose
+bottlenecks, not exclusive routing through the designated survivor positions.
+
+For immutable-KV Transformers, each relay consumes model depth. Retaining an old
+entry can bridge arbitrary temporal distance within the supported positional
+range, but repeated transfers are not an unlimited recurrent state update.
+
+## Controlled retraining
+
+The expensive baseline remains at:
+
+```
+runs/baseline/checkpoint-0006000.npz
+```
+
+New configs in `configs/controlled/` initialize from that checkpoint and write to
+new `runs/controlled-*` directories. They share training data, optimization,
+seed, and 2,000 finetuning steps. The scored arm uses a 5% full-context escape
+mixture; the other supplied configs use none:
+
+| Config | Training constraint | Native training-time validation |
+| --- | --- | --- |
+| `full.json` | Full attention | Full attention |
+| `swa32.json` | Window 32 | Window 32 |
+| `swa-variable.json` | Window uniformly sampled from 16–48 | Window 32 |
+| `memento.json` | Ordinary survivors, recursive masks | Same mask family |
+| `memento-swa32.json` | Ordinary survivors + SWA-32 | Both constraints |
+| `memento-carriers.json` | Inserted carriers, recursive masks | Same mask family + carriers |
+| `scored.json` | 24 recent + 8 older entries per layer | Same scored budget |
+
+SWA-32 and scored 24+8 have the same maximum number of visible entries per layer.
+Memento masks have a variable visible-token budget. Inserted carriers also alter
+sequence length and the number of original moves covered by a fixed window;
+those comparisons should not be described as matched-compute experiments.
+
+Each controlled config trains on three FEN readouts from one sampled move
+history. The endpoint is always included and up to two earlier complete-move
+boundaries are sampled. The history transformer pass is shared; the three
+teacher-forced FEN continuations are parallel branches with independent cache
+snapshots. Set `training_readouts` to 1 to recover endpoint-only training.
+
+```bash
+uv sync --extra dev
+uv run --locked llmpr-train --config configs/controlled/swa32.json
+uv run --locked llmpr-train --config configs/controlled/memento.json
+uv run --locked llmpr-train --config configs/controlled/scored.json
+```
+
+Run whichever arms are relevant. These commands are not required in a particular
+order. Existing nonempty run directories require `--resume`; starting a new arm
+requires a new `run_dir`. The baseline weights load unchanged; scored arms add
+small scoring heads and carrier arms may add embedding rows. Initialization
+starts a fresh optimizer; resume requires matching model parameters.
+
+The historical finetuning runs and configs have been removed. Only the 6k
+baseline checkpoint and its original metadata remain under `runs/baseline/`.
+`configs/baseline.json` is its evaluation config. New run manifests are immutable,
+contain source hashes, and evaluation never overwrites them. Resume invocations
+are logged separately. Training data, training masks, and validation use separate
+RNG streams; validation uses a fixed seed.
+
+With shared readouts, `full_attention_share` is sampled once per history and the
+choice applies to all of its FEN branches. For scored eviction it bypasses the
+learned budget and keeps the full causal history. For SWA it uses a full-width
+window, and for ordinary Memento masks it removes the transport spans. Carrier
+arms select whole plain microbatches because their sequence layout differs.
+
+## Paired KV-restart evaluation
+
+`llmpr-eval-chess` uses seeded reservoir sampling from eligible validation or test
+rows. Carrier layouts and sampling RNGs are derived from example identity, so
+changing batch size does not change them. Generation and teacher-forced evaluation
+support transport masks during both prefill and decode.
+
+```bash
+# Test ordinary SWA transport on the original baseline.
+uv run --locked llmpr-eval-chess \
+  --config configs/baseline.json \
+  --checkpoint runs/baseline/checkpoint-0006000.npz \
+  --examples 512 --temperatures 0 --windows 32 \
+  --cache-modes preserve,restart,restart-each --teacher-forced
+
+# Test an ordinary-token Memento checkpoint under its actual eviction masks.
+uv run --locked llmpr-eval-chess \
+  --config configs/controlled/memento.json \
+  --examples 512 --temperatures 0 --windows full --transport \
+  --cache-modes preserve,restart --teacher-forced
+
+# Test scored eviction at its own 24+8 budget.
+uv run --locked llmpr-eval-chess \
+  --config configs/controlled/scored.json \
+  --examples 512 --temperatures 0 --windows full \
+  --cache-modes preserve,restart --teacher-forced
+```
+
+Here `--windows full` means **no additional positional SWA band**. Transport
+masks and learned scored retention still operate when enabled. Use
+`--disable-scoring --windows full,32` to evaluate a scored checkpoint under
+ordinary full/SWA attention. For static policies, `--transport` explicitly opts
+into the eviction schedule; omitting it measures transfer to full attention/SWA.
+`--no-carriers` disables inserted tokens when evaluating a carrier checkpoint,
+but cannot be combined with its carrier-dependent transport schedule.
+
+Cache modes:
+
+- `preserve`: retain the original contextual KVs.
+- `restart`: immediately before the final prefix query (normally `<fen>`),
+  reconstruct surviving KVs using only surviving key support at each layer.
+  Keep original token identities, absolute RoPE positions, and historical mask
+  restrictions. Then process the query normally.
+- `restart-each`: perform the boundary intervention and repeat reconstruction
+  before each subsequently fed output token. This probes transport during FEN
+  decoding too; it is not a restart at every source-side eviction event.
+
+For scored models, a preserved shadow computation on the same supplied tokens
+fixes all retention decisions. Reconstruction never reranks the candidates. Thus
+paired teacher-forced comparisons change KV content while holding token text,
+positions, and selection schedules fixed.
+
+`--teacher-forced` additionally measures NLL on identical reference continuations
+and emits `paired_transport` records. A **positive** `nll_increase_per_token`
+means restarting hurts: preserved contextual KVs were useful. Free-running FEN
+metrics complement this measurement but can diverge through generated token text.
+Reconstruction is an intervention and may introduce distribution shift; the
+paired gap is evidence of reliance on contextual representations, not by itself
+proof of a particular learned compression algorithm.
+
+`--split test` selects the test split. `--data-dir data/chess-random-50k` evaluates
+random legal games with the same tokenizers. Board square error is conditional
+on a parseable six-field FEN; inspect parseability and exact-match alongside it.
+
+## Scorer training details
+
+Selection is hard top-M during both training and inference. A sigmoid
+straight-through gate supplies an experimental, biased gradient approximation to
+train the scorer from future target loss. The attention forward pass uses the
+hard selected support, not a larger soft cache. Retained KVs remain differentiable
+through ordinary attention paths during training, so the model can learn to place
+useful information into future survivors.
+
+Each KV entry is scored once, when it crosses out of the recent window. That
+priority is stored with the cache entry and reused for later selections; old
+entries are not rescored at every query. Shared readout snapshots mask priorities
+that had not yet been assigned at that point, preventing later moves from leaking
+scores into an earlier branch. Because priorities are immutable, training computes
+the top-M support for all sequence positions in one batched operation; cached
+inference still updates the support once per generated token.
+
+The scored config also samples one local support counterfactual in 5% of
+microbatches. At one readout and layer it swaps up to two retained old entries
+with two discarded old entries, compares the two FEN losses, and applies a small
+pairwise loss to order their scores toward the better support. This adds an
+explicit negative without changing the normal hard-selection forward pass.
+`negative_score_probability`, `negative_score_weight`, and
+`negative_score_swaps` control this experiment. Four alternatives are evaluated
+in parallel by default (`negative_score_alternatives`). Training logs report the
+mean alternative-minus-selected loss and the fraction of alternatives that beat
+the selected support.
+
+The implementation uses per-layer policies shared across attention heads and a
+partial top-k selection rather than sorting the whole cache. Cache
+storage remains dense and evicted entries are masked. This intentionally favors
+clear experimental semantics over memory savings. There is no claim that the
+scorer has learned useful transport until the trained checkpoints are evaluated.
+Scored training is a separate arm; combining it with static transport or SWA
+training constraints is currently rejected. A full-context escape mixture is
+supported. Attention-map capture for scored models is not implemented.
+
+## Data and cache integrity
+
+Game-level splits keep state probes from one game together. Training uses a
+75% Lichess / 25% random-legal mixture in the supplied configs.
+
+New token caches use format v2: overlong source **or target** examples are dropped,
+not truncated while retaining an incompatible FEN. The ordinary data loader and
+standalone evaluator follow the same no-truncation rule. Tokenizer fingerprints
+are checked when loading caches.
+
+Existing v1 caches remain usable without rewriting data: rows at the source or
+target limit are conservatively excluded because exact-limit and truncated rows
+cannot be distinguished. A warning reports the exclusion count. Rebuilding to a
+new directory retains valid exact-limit examples:
+
+```bash
+uv run --locked llmpr-cache \
+  --data-dir data/chess-2shards \
+  --out data/cache/chess-v2 \
+  --source-tokenizer artifacts/tokenizers/chess-move-bpe-512-full.json \
+  --target-tokenizer artifacts/tokenizers/chess-fen-bpe-512-full.json \
+  --max-source-tokens 256 --max-target-tokens 96
+```
+
+Update `cache_dir` in a new run config to use the rebuilt cache. The baseline
+checkpoint does not need retraining to use these data fixes.
+
+## Checks and inspection
+
+```bash
+uv run --locked pytest -q
+uv run --locked llmpr-attention-html \
+  --config configs/baseline.json --index 3
+```
+
+Regression tests cover cached/same-pass equivalence, variable carrier padding,
+batch-invariant generation, removal of the old-context channel by restarting,
+no-eviction restart equivalence, scorer gradients, hard budgets and irreversible
+selection, frozen scored schedules, checkpoint initialization, and run metadata.

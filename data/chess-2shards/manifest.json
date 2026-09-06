@@ -1,0 +1,24 @@
+{
+  "dataset": "Lichess/standard-chess-games",
+  "revision": null,
+  "upstream_split": "train",
+  "seed": 1337,
+  "scan_limit": 2000000,
+  "scanned": 472002,
+  "eligible": 221658,
+  "selected_games": 200000,
+  "min_plies": 20,
+  "max_plies": 160,
+  "min_prefix_plies": 8,
+  "state_prefixes_per_game": 8,
+  "min_elo": 1600,
+  "max_elo": 2400,
+  "reservoir": true,
+  "val_fraction": 0.05,
+  "test_fraction": 0.05,
+  "rows": {
+    "train": 1439448,
+    "val": 80072,
+    "test": 80480
+  }
+}

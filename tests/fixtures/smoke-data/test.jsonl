@@ -1,0 +1,1 @@
+{"name":"one","file":"toy/one.c","asm":"one:\n  mov $1, %eax\n  ret","code":"int one(void) { return 1; }"}

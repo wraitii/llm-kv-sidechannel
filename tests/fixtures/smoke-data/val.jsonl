@@ -1,0 +1,1 @@
+{"name":"identity","file":"toy/identity.c","asm":"identity:\n  mov %edi, %eax\n  ret","code":"int identity(int x) { return x; }"}

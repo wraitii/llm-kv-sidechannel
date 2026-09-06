@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llm-pseudorecurrent"
+version = "0.1.0"
+description = "Experiments on learned KV transport in local-attention Transformers"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "datasets>=3.0",
+  "mlx>=0.29",
+  "numpy>=2.0",
+  "python-chess>=1.999",
+  "tokenizers>=0.21",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+llmpr-prepare-chess = "llmz.prepare_chess:main"
+llmpr-prepare-random-chess = "llmz.prepare_random_chess:main"
+llmpr-train-tokenizer = "llmz.tokenizer:main"
+llmpr-cache = "llmz.cache:main"
+llmpr-train = "llmz.train:main"
+llmpr-generate = "llmz.generate:main"
+llmpr-eval-chess = "llmz.eval_chess:main"
+llmpr-attention = "llmz.inspect_attention:main"
+llmpr-attention-html = "llmz.attention_html:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llmz"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

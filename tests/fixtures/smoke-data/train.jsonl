@@ -1,0 +1,2 @@
+{"name":"add","file":"toy/add.c","asm":"add:\n  lea (%rdi,%rsi), %eax\n  ret","code":"int add(int a, int b) { return a + b; }"}
+{"name":"zero","file":"toy/zero.c","asm":"zero:\n  xor %eax, %eax\n  ret","code":"int zero(void) { return 0; }"}

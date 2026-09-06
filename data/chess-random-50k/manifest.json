@@ -1,0 +1,21 @@
+{
+  "dataset": "generated:uniform-random-legal-chess:v1",
+  "seed": 714727,
+  "trajectories": 50000,
+  "min_plies": 20,
+  "max_plies": 160,
+  "min_prefix_plies": 8,
+  "state_prefixes_per_game": 8,
+  "val_fraction": 0.05,
+  "test_fraction": 0.05,
+  "games": {
+    "train": 45050,
+    "val": 2421,
+    "test": 2529
+  },
+  "rows": {
+    "train": 360400,
+    "val": 19368,
+    "test": 20232
+  }
+}
