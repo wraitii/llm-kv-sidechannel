@@ -6,7 +6,7 @@ import numpy as np
 import mlx.core as mx
 
 from .carriers import expand_batch
-from .transport import RecursiveCarrierPolicy
+from .transport import RecursiveCarrierPolicy, StreamingLogPolicy
 from .move_alignment import sample_transport
 from .tokenizer import BOS, SEP, PAD
 
@@ -28,7 +28,10 @@ def prepare_prefix(tokenizer, rows, max_source_tokens, policy=None,
         boundary = len(ids)
         spans = np.empty((0, 3), dtype=np.int32)
         rng = np.random.default_rng(row_seed(row, seed))
-        if isinstance(policy, RecursiveCarrierPolicy):
+        if isinstance(policy, StreamingLogPolicy):
+            if transport:
+                spans = policy.sequence_spans()
+        elif isinstance(policy, RecursiveCarrierPolicy):
             batch = {"x": np.array([ids], dtype=np.int32),
                      "valid": np.ones((1, len(ids)), dtype=bool),
                      "source_tokens": np.array([len(source)]),

@@ -15,7 +15,7 @@ from .tokenizer import EOS, PairTokenizer
 from .runtime import load_config, model_and_tokenizer
 from .train import latest_checkpoint, load_model_checkpoint
 from .model import PrefixLM
-from .transport import FixedSparsePolicy, RecursiveCarrierPolicy, policy_from_config
+from .transport import FixedSparsePolicy, RecursiveCarrierPolicy, StreamingLogPolicy, policy_from_config
 
 
 def generate_batch(model: PrefixLM, tokenizer: PairTokenizer, rows: list[dict],
@@ -92,10 +92,21 @@ def main() -> None:
     parser.add_argument("--scored-recent-window", type=int,
                         help="override the scored model's recent window for a budget sweep")
     parser.add_argument("--scored-budget", type=int,
-                        help="override scored eviction with an even total budget split equally between recent and memory tokens")
+                        help="override scored eviction's total budget while preserving its configured recent:memory ratio")
     parser.add_argument("--fixed-sparse-budget", type=int,
                         help="override a fixed-sparse policy with an even total budget split equally between recent and memory tokens")
+    parser.add_argument("--streaming-log-budget", type=int,
+                        help="irreversible log-age thinning over source and target; even total budget, equally split")
     args = parser.parse_args()
+    if args.streaming_log_budget is not None:
+        if args.streaming_log_budget < 2 or args.streaming_log_budget % 2:
+            parser.error("--streaming-log-budget must be positive and even")
+        if args.fixed_sparse_budget is not None or args.scored_budget is not None:
+            parser.error("streaming log cannot be combined with other budget overrides")
+        if args.windows not in (None, "full"):
+            parser.error("streaming log defines its own budget; use --windows full")
+        args.transport = True
+        args.windows = "full"
     cfg = load_config(args.config)
     if args.scored_recent_window is not None and args.scored_budget is not None:
         parser.error("--scored-recent-window and --scored-budget are mutually exclusive")
@@ -105,13 +116,16 @@ def main() -> None:
         cfg["scored_eviction"] = {
             **cfg["scored_eviction"], "recent_window": args.scored_recent_window}
     if args.scored_budget is not None:
-        if (not cfg.get("scored_eviction")
-                or args.scored_budget < 2
-                or args.scored_budget % 2):
-            parser.error("--scored-budget requires scored_eviction and a positive even budget")
-        half = args.scored_budget // 2
+        scored_cfg = cfg.get("scored_eviction") or {}
+        configured_total = (scored_cfg.get("recent_window", 0)
+                            + scored_cfg.get("memory_tokens", 0))
+        if configured_total < 2 or args.scored_budget < 2:
+            parser.error("--scored-budget requires scored_eviction and a total budget of at least 2")
+        recent = round(args.scored_budget * scored_cfg["recent_window"] / configured_total)
+        recent = min(max(recent, 1), args.scored_budget - 1)
         cfg["scored_eviction"] = {
-            **cfg["scored_eviction"], "recent_window": half, "memory_tokens": half}
+            **scored_cfg, "recent_window": recent,
+            "memory_tokens": args.scored_budget - recent}
     if args.fixed_sparse_budget is not None:
         policy_cfg = cfg.get("transport_policy") or {}
         if (policy_cfg.get("kind") != "fixed_sparse"
@@ -123,6 +137,11 @@ def main() -> None:
             **policy_cfg, "recent_tokens": half, "memory_tokens": half}
     model, tokenizer = model_and_tokenizer(cfg)
     carrier_policy = policy_from_config(cfg.get("transport_policy"))
+    if args.streaming_log_budget is not None:
+        if not isinstance(carrier_policy, FixedSparsePolicy) or cfg.get("scored_eviction"):
+            parser.error("--streaming-log-budget requires a fixed_sparse checkpoint config")
+        half = args.streaming_log_budget // 2
+        carrier_policy = StreamingLogPolicy(half, half, model.max_length)
     if args.no_carriers and isinstance(carrier_policy, RecursiveCarrierPolicy):
         if args.transport:
             parser.error("--no-carriers cannot apply an inserted-carrier transport policy")
@@ -196,6 +215,7 @@ def main() -> None:
                 record = {"checkpoint": str(checkpoint), "step": state["step"],
                           "temperature": temperature, "sliding_window": window,
                           "cache_mode": mode, "transport": args.transport,
+                          "streaming_log_budget": args.streaming_log_budget,
                           "scored_eviction": bool(cfg.get("scored_eviction")) and not args.disable_scoring,
                           "scored_recent_window": (cfg.get("scored_eviction") or {}).get("recent_window")
                           if not args.disable_scoring else None,

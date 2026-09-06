@@ -15,6 +15,47 @@ def small_model(scored=None):
                     carrier_vocab=2, scored_eviction=scored)
 
 
+def test_streaming_log_budget_no_resurrection_and_horizon_independence():
+    from llmz.transport import StreamingLogPolicy
+    from llmz.kv_state import visibility
+    for recent, memory in [(1, 1), (2, 2), (8, 8), (16, 16)]:
+        policy = StreamingLogPolicy(recent, memory, 128)
+        spans = policy.sequence_spans()
+        short = StreamingLogPolicy(recent, memory, 64).sequence_spans()
+        np.testing.assert_array_equal(short, spans[spans[:, 2] < 63])
+        positions = mx.arange(128)[None]
+        allowed = np.asarray(visibility(positions, positions,
+            mx.ones((1, 128), dtype=mx.bool_), mx.array(spans[None])))[0]
+        for query in range(128):
+            assert allowed[query].sum() == min(query + 1, recent + memory)
+            assert allowed[query, max(0, query-recent+1):query+1].all()
+            if query:
+                assert not (allowed[query, :query] & ~allowed[query-1, :query]).any()
+        assert not allowed[127, 64:96].all()  # target-like positions are evicted too
+
+
+def test_streaming_log_cached_and_compacted_execution_match_masked_forward():
+    from llmz.transport import StreamingLogPolicy
+    from llmz.kv_state import KVState, visibility
+    model = small_model()
+    tokens = mx.array([[1, 10, 11, 12, 13, 14, 2, 260, 261, 262, 263, 264]])
+    spans = mx.array(StreamingLogPolicy(2, 2, 128).sequence_spans()[None])
+    _, cache = model.prefill(tokens[:, :1], mx.ones((1, 1), dtype=mx.bool_),
+                             mx.array([7]), transport_spans=spans)
+    for t in range(1, tokens.shape[1]):
+        # Physically discard unusable keys before each query, keeping positions.
+        keep = np.flatnonzero(np.asarray(visibility(cache.next_positions[:, None],
+            cache.positions, cache.valid, spans))[0, 0]).tolist()
+        cache = KVState([(k[:, :, keep], v[:, :, keep]) for k, v in cache],
+                        cache.tokens[:, keep], cache.positions[:, keep],
+                        cache.valid[:, keep], cache.next_positions, spans)
+        logits, cache = model.decode(tokens[:, t:t+1], cache)
+        direct = model(tokens[:, :t+1], mx.ones((1, t+1), dtype=mx.bool_),
+                       mx.array([7]), mx.array([[t]]), spans)
+        assert mx.allclose(logits, direct, atol=2e-6, rtol=2e-5).item()
+        assert cache.tokens.shape[1] <= 4
+
+
 def test_variable_carrier_batches_match_single_row_prefill_and_decode():
     model = small_model()
     tok = PairTokenizer(BytesTokenizer(), BytesTokenizer(), carrier_vocab=2)

@@ -142,6 +142,44 @@ def max_carrier_tokens(policy_config: dict | None,
 
 
 @dataclass(frozen=True)
+class StreamingLogPolicy:
+    """Irreversible log-age thinning over all sequence positions, including BOS.
+
+    Protect a recent tail. On memory overflow, remove the interior entry whose
+    neighbors have the smallest log-age separation, retaining the oldest and
+    newest memory anchors. This approximates log spacing using only live KVs.
+    Spans simulate the online decisions; their prefix never depends on horizon.
+    """
+
+    recent_tokens: int = 16
+    memory_tokens: int = 16
+    horizon: int = 354
+
+    def __post_init__(self):
+        if min(self.recent_tokens, self.memory_tokens, self.horizon) < 1:
+            raise ValueError("streaming log budgets and horizon must be positive")
+
+    def sequence_spans(self):
+        memory, spans = [], []
+        for query in range(self.horizon):
+            newly_old = query - self.recent_tokens
+            if newly_old < 0:
+                continue
+            memory.append(newly_old)
+            if len(memory) <= self.memory_tokens:
+                continue
+            if self.memory_tokens == 1:
+                remove = 0
+            else:
+                ages = newly_old - np.asarray(memory) + 1
+                gaps = np.log(ages[:-2]) - np.log(ages[2:])
+                remove = int(np.argmin(gaps)) + 1
+            discarded = memory.pop(remove)
+            spans.append((discarded, discarded + 1, query - 1))
+        return np.asarray(spans, dtype=np.int32).reshape(-1, 3)
+
+
+@dataclass(frozen=True)
 class FixedSparsePolicy:
     """Keep a fixed recent tail plus content-independent older memory tokens.
 
