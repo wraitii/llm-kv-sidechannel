@@ -24,7 +24,6 @@ data/**
 !data/**/
 !data/**/manifest.json
 artifacts/
-evaluations/
 runs/**
 !runs/**/
 !runs/**/config.json
