@@ -178,6 +178,13 @@ class StreamingLogPolicy:
             spans.append((discarded, discarded + 1, query - 1))
         return np.asarray(spans, dtype=np.int32).reshape(-1, 3)
 
+    def expiry_positions(self):
+        """Last visible query per absolute token position; horizon means live."""
+        expiry = np.full(self.horizon, self.horizon, dtype=np.int32)
+        for start, end, until in self.sequence_spans():
+            expiry[start:end] = until
+        return expiry
+
 
 @dataclass(frozen=True)
 class FixedSparsePolicy:
@@ -254,12 +261,18 @@ class FixedSparsePolicy:
         return result
 
 
-def policy_from_config(config: dict | None) -> RecursiveBlockPolicy | FixedSparsePolicy | None:
+def policy_from_config(config: dict | None) -> RecursiveBlockPolicy | FixedSparsePolicy | StreamingLogPolicy | None:
     """Resolve one of the supported transport policies."""
     if not config or config.get("kind", "none") == "none":
         return None
     kind = config.get("kind")
     alignment = config.get("alignment")
+    if kind == "streaming_log":
+        if alignment != "token":
+            raise ValueError("streaming_log requires alignment='token'")
+        return StreamingLogPolicy(config.get("recent_tokens", 16),
+                                  config.get("memory_tokens", 16),
+                                  config.get("horizon", 354))
     if kind == "fixed_sparse":
         return FixedSparsePolicy(
             recent_tokens=config.get("recent_tokens", 16),

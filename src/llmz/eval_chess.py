@@ -138,8 +138,8 @@ def main() -> None:
     model, tokenizer = model_and_tokenizer(cfg)
     carrier_policy = policy_from_config(cfg.get("transport_policy"))
     if args.streaming_log_budget is not None:
-        if not isinstance(carrier_policy, FixedSparsePolicy) or cfg.get("scored_eviction"):
-            parser.error("--streaming-log-budget requires a fixed_sparse checkpoint config")
+        if not isinstance(carrier_policy, (FixedSparsePolicy, StreamingLogPolicy)) or cfg.get("scored_eviction"):
+            parser.error("--streaming-log-budget requires a fixed_sparse or streaming_log config")
         half = args.streaming_log_budget // 2
         carrier_policy = StreamingLogPolicy(half, half, model.max_length)
     if args.no_carriers and isinstance(carrier_policy, RecursiveCarrierPolicy):
@@ -215,7 +215,8 @@ def main() -> None:
                 record = {"checkpoint": str(checkpoint), "step": state["step"],
                           "temperature": temperature, "sliding_window": window,
                           "cache_mode": mode, "transport": args.transport,
-                          "streaming_log_budget": args.streaming_log_budget,
+                          "streaming_log_budget": (carrier_policy.recent_tokens + carrier_policy.memory_tokens)
+                          if isinstance(carrier_policy, StreamingLogPolicy) and args.transport else None,
                           "scored_eviction": bool(cfg.get("scored_eviction")) and not args.disable_scoring,
                           "scored_recent_window": (cfg.get("scored_eviction") or {}).get("recent_window")
                           if not args.disable_scoring else None,

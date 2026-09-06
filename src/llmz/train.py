@@ -17,7 +17,7 @@ from .board_eval import score_board_outputs
 from .model import PrefixLM
 from .tokenizer import EOS, PairTokenizer
 from .runtime import load_config, model_and_tokenizer
-from .transport import RecursiveCarrierPolicy, policy_from_config
+from .transport import RecursiveCarrierPolicy, StreamingLogPolicy, policy_from_config
 from .carriers import expand_batch
 from .experiment import training_batch, record_run
 from .move_alignment import sample_transport, batch_sources
@@ -240,6 +240,8 @@ def main() -> None:
         print(f"initialized model weights from {init_checkpoint} "
               f"(source step {init_state.get('step', 'unknown')})", flush=True)
     transport_policy = policy_from_config(cfg.get("transport_policy"))
+    if isinstance(transport_policy, StreamingLogPolicy) and transport_policy.horizon < model.max_length:
+        raise ValueError("streaming log horizon must cover model.max_length")
     if transport_policy is not None and model.attention_mode != "causal":
         raise ValueError("transport policies require attention_mode=causal")
     train_sliding_window = cfg.get("train_sliding_window")
@@ -334,7 +336,11 @@ def main() -> None:
             eval_batches = [val.batch(fixed_eval_indices[start:start + cfg["batch_size"]])
                             for start in range(0, len(fixed_eval_indices), cfg["batch_size"])]
         for batch_np in eval_batches:
-            if isinstance(transport_policy, RecursiveCarrierPolicy):
+            if isinstance(transport_policy, StreamingLogPolicy):
+                batch_np = training_batch(batch_np,
+                    transport_policy if cfg.get("transport_eval", False) else None,
+                    tokenizer, layout_rng)
+            elif isinstance(transport_policy, RecursiveCarrierPolicy):
                 plan = sample_transport(transport_policy, batch_sources(batch_np), tokenizer, layout_rng)
                 batch_np, spans, _ = expand_batch(
                     batch_np, plan, transport_policy, tokenizer.carrier_ids, rng=layout_rng)

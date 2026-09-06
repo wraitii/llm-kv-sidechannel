@@ -29,8 +29,8 @@ def prepare_prefix(tokenizer, rows, max_source_tokens, policy=None,
         spans = np.empty((0, 3), dtype=np.int32)
         rng = np.random.default_rng(row_seed(row, seed))
         if isinstance(policy, StreamingLogPolicy):
-            if transport:
-                spans = policy.sequence_spans()
+            if boundary > policy.horizon:
+                raise ValueError("streaming log horizon is shorter than prefix")
         elif isinstance(policy, RecursiveCarrierPolicy):
             batch = {"x": np.array([ids], dtype=np.int32),
                      "valid": np.ones((1, len(ids)), dtype=bool),
@@ -57,6 +57,9 @@ def prepare_prefix(tokenizer, rows, max_source_tokens, policy=None,
         tokens[i, :len(ids)] = ids
         valid[i, :len(ids)] = True
         spans[i, :len(span_rows[i])] = span_rows[i]
+    if isinstance(policy, StreamingLogPolicy) and transport:
+        spans = np.broadcast_to(policy.expiry_positions(),
+                                (len(rows), policy.horizon)).copy()
     return mx.array(tokens), mx.array(valid), mx.array(boundaries), mx.array(spans)
 
 

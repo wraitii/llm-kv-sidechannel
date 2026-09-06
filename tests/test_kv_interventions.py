@@ -15,6 +15,51 @@ def small_model(scored=None):
                     carrier_vocab=2, scored_eviction=scored)
 
 
+def test_streaming_expiry_training_cached_and_restart_equivalence():
+    from llmz.transport import StreamingLogPolicy, policy_from_config
+    from llmz.experiment import training_batch
+    from llmz.data import PairDataset
+    from llmz.kv_state import visibility
+    policy = policy_from_config(dict(kind="streaming_log", alignment="token",
+                                    recent_tokens=2, memory_tokens=2, horizon=128))
+    model = small_model()
+    tok = PairTokenizer(BytesTokenizer(), BytesTokenizer(), carrier_vocab=2)
+    rows = [{"asm": "abcdefgh", "code": "123456"},
+            {"asm": "abcd", "code": "123"}]
+    from llmz.data import batch_examples
+    dataset = PairDataset.__new__(PairDataset)
+    dataset.rows, dataset.tokenizer = rows, tok
+    batch = training_batch(batch_examples([dataset.encode(i) for i in range(2)]),
+                           policy, tok, np.random.default_rng(0))
+    expiry = mx.array(batch["transport_spans"])
+    spans = mx.array(np.broadcast_to(policy.sequence_spans(),
+                     (2, *policy.sequence_spans().shape)).copy())
+    x, valid = mx.array(batch["x"]), mx.array(batch["valid"])
+    positions = mx.broadcast_to(mx.arange(x.shape[1]), x.shape)
+    for window in (None, 3):
+        assert mx.array_equal(visibility(positions, positions, valid, spans, window),
+                              visibility(positions, positions, valid, expiry, window)).item()
+    boundary = mx.array(batch["prefix_lengths"])
+    outputs = mx.array(batch["output_positions"])
+    def loss(m, schedule):
+        return mx.sum(m(x, valid, boundary, outputs, schedule).astype(mx.float32))
+    vg = nn.value_and_grad(model, loss)
+    a, ga = vg(model, spans)
+    b, gb = vg(model, expiry)
+    assert mx.allclose(a, b, atol=1e-5).item()
+    for (_, va), (_, vb) in zip(tree_flatten(ga), tree_flatten(gb), strict=True):
+        assert mx.allclose(va, vb, atol=1e-5, rtol=1e-5).item()
+    prefix = prepare_prefix(tok, rows, 32, policy, True)
+    assert prefix[3].ndim == 2
+    for mode in ("preserve", "restart", "restart-each"):
+        fast = DecodeSession(model, *prefix, mode=mode)
+        reference = DecodeSession(model, *prefix[:3], spans, mode=mode)
+        for _ in range(8):
+            assert mx.allclose(fast.logits, reference.logits, atol=2e-6, rtol=2e-5).item()
+            fast.advance(mx.array([[260], [261]]))
+            reference.advance(mx.array([[260], [261]]))
+
+
 def test_streaming_log_budget_no_resurrection_and_horizon_independence():
     from llmz.transport import StreamingLogPolicy
     from llmz.kv_state import visibility

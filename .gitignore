@@ -24,7 +24,5 @@ data/**
 !data/**/
 !data/**/manifest.json
 artifacts/
-runs/**
-!runs/**/
-!runs/**/config.json
-!runs/**/metrics.jsonl
+# Keep experiment definitions in configs/ and selected results in evaluation/.
+/runs/

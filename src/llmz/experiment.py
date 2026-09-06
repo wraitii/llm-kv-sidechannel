@@ -7,14 +7,20 @@ from pathlib import Path
 import numpy as np
 
 from .carriers import expand_batch
-from .transport import RecursiveCarrierPolicy
+from .transport import RecursiveCarrierPolicy, StreamingLogPolicy
 from .move_alignment import sample_transport, batch_sources
 
 
 def training_batch(batch, policy, tokenizer, rng):
     """Apply the configured transport policy to a normal endpoint batch."""
     count = len(batch["x"])
-    if isinstance(policy, RecursiveCarrierPolicy):
+    if isinstance(policy, StreamingLogPolicy):
+        if batch["x"].shape[1] > policy.horizon:
+            raise ValueError("streaming log horizon is shorter than training sequence")
+        batch = dict(batch)
+        batch["transport_spans"] = np.broadcast_to(
+            policy.expiry_positions(), (count, policy.horizon)).copy()
+    elif isinstance(policy, RecursiveCarrierPolicy):
         batch, spans, _ = expand_batch(
             batch, sample_transport(policy, batch_sources(batch), tokenizer, rng),
             policy, tokenizer.carrier_ids, rng=rng)

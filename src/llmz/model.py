@@ -86,7 +86,8 @@ def same_pass_transport_mask(valid, spans, dtype=mx.float32,
     ``spans`` is ``[batch, n, 3]`` in sequence coordinates. Keys in
     ``[start, end)`` are hidden from every query strictly after
     ``visible_until``; queries up to ``visible_until`` still read them.
-    Padded ``(-1, -1, -1)`` spans are ignored.
+    Padded ``(-1, -1, -1)`` spans are ignored. A rank-two array instead stores
+    the last visible query for each absolute key position [batch, horizon].
 
     ``sliding_window`` optionally applies the ordinary causal SWA band as an
     additional restriction.  Thus sparse Memento-style eviction and SWA are
@@ -97,6 +98,10 @@ def same_pass_transport_mask(valid, spans, dtype=mx.float32,
             and sliding_window < 1):
         raise ValueError("sliding_window must be positive")
     length = valid.shape[1]
+    if spans.ndim == 2:
+        positions = mx.broadcast_to(mx.arange(length), valid.shape)
+        return additive_mask(visibility(positions, positions, valid, spans,
+                                        sliding_window), dtype)
     q = mx.arange(length)[None, :, None]
     k = mx.arange(length)[None, None, :]
     allowed = (k <= q) & valid[:, None, :]

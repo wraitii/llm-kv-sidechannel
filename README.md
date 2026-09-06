@@ -59,21 +59,32 @@ seed, 2,000 finetuning steps, and endpoint-only FEN supervision:
 | `full.json` | Full attention | Full attention |
 | `swa32.json` | Window 32 | Window 32 |
 | `swa-variable.json` | Window uniformly sampled from 16–48 | Window 32 |
-| `fixed-sparse-uniform16x16.json` | 16 recent + 16 uniformly placed older KVs | Same fixed sparse policy |
-| `fixed-sparse-log16x16.json` | 16 recent + 16 logarithmically placed older KVs | Same fixed sparse policy |
+| `streaming-log16x16.json` | 16 recent + 16 older KVs, irreversible log-age thinning over source and FEN | Same streaming policy |
 | `memento.json` | Ordinary survivors, recursive masks | Same mask family |
 | `memento-swa32.json` | Ordinary survivors + SWA-32 | Both constraints |
 | `memento-carriers.json` | Inserted carriers, recursive masks | Same mask family + carriers |
 | `scored.json` | 24 recent + 8 older entries per layer | Same scored budget |
 
-SWA-32, fixed sparse 16+16, and scored 24+8 expose the same maximum number of
-source entries to the target. Fixed sparse is an endpoint-memory intervention:
-source tokens first build ordinary causal KVs, then non-survivors are hidden
-from target queries. It therefore matches endpoint capacity, not source-side
-attention compute, and deliberately preserves the contextual-KV channel.
+SWA-32, streaming log 16+16, and scored 24+8 each limit visible entries to 32
+throughout source and target processing.
 Memento masks have a variable visible-token budget. Inserted carriers also alter
 sequence length and the number of original moves covered by a fixed window;
 those comparisons should not be described as matched-compute experiments.
+
+Streaming log counts all tokens (including BOS and the FEN separator) in its
+32-entry budget. On overflow it discards the interior older entry with the
+smallest log-age separation between its neighbors, preserving the oldest and
+newest older anchors. Discarded KVs never return. Training, validation, and
+decoding use the same expiry schedule; attention and cache storage remain dense.
+The fresh run initializes from baseline step 6000:
+
+```bash
+uv run --locked llmpr-train --config configs/controlled/streaming-log16x16.json
+```
+
+For standalone evaluation use `--transport --windows full` for the native
+configured policy, or `--streaming-log-budget 64` for a 32+32 capacity override.
+Omit both flags to evaluate true full attention with `--windows full`.
 
 ```bash
 uv sync --extra dev
