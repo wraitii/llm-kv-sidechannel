@@ -9,9 +9,10 @@ import sys
 import mlx.core as mx
 import numpy as np
 
-from .model import PrefixLM, model_from_config
-from .tokenizer import BOS, EOS, SEP, PairTokenizer, load_tokenizer
-from .train import dtype_for, latest_checkpoint, load_model_checkpoint
+from .model import PrefixLM
+from .tokenizer import EOS, PairTokenizer
+from .runtime import load_config, model_and_tokenizer
+from .train import latest_checkpoint, load_model_checkpoint
 
 
 def sample_token(logits: np.ndarray, rng: np.random.Generator,
@@ -88,12 +89,12 @@ def generate(model: PrefixLM, tokenizer: PairTokenizer, asm: str,
              max_source_tokens: int, max_new_tokens: int,
              temperature: float, top_p: float, top_k: int,
              seed: int, policy=None, transport=False, sliding_window=None,
-             cache_mode="preserve") -> tuple[str, int, bool]:
+             cache_mode="preserve") -> tuple[str, int]:
     from .eval_chess import generate_batch
     output = generate_batch(model, tokenizer, [{"asm": asm}], max_source_tokens,
                             max_new_tokens, temperature, top_p, sliding_window,
                             policy, transport, cache_mode, seed, top_k)[0]
-    return output, len(tokenizer.encode_source(asm)), False
+    return output, len(tokenizer.encode_source(asm))
 
 
 def main() -> None:
@@ -132,14 +133,8 @@ def main() -> None:
     # buffers to grow as large as its overall memory limit.
     mx.set_cache_limit(args.metal_cache_mib * 1024**2)
 
-    cfg = json.loads(args.config.read_text())
-    tokenizer = PairTokenizer(load_tokenizer(cfg["source_tokenizer"]),
-                              load_tokenizer(cfg["target_tokenizer"]),
-                              cfg.get("pause_token", False), cfg.get("pause_tokens"),
-                              cfg.get("distinct_pause_tokens", False),
-                              cfg.get("causal_pause", False), cfg.get("carrier_vocab", 0))
-    model = model_from_config(tokenizer.source.vocab_size, tokenizer.target.vocab_size,
-                              cfg, dtype_for(cfg["dtype"]))
+    cfg = load_config(args.config)
+    model, tokenizer = model_and_tokenizer(cfg)
     run_dir = Path(cfg["run_dir"])
     checkpoint = (latest_checkpoint(run_dir) if args.checkpoint == "auto"
                   else Path(args.checkpoint))
@@ -168,12 +163,12 @@ def main() -> None:
         parser.error("--sliding-window must be positive")
     maximum = min(args.max_new_tokens or cfg["max_target_tokens"],
                   cfg["max_target_tokens"])
-    output, source_tokens, truncated = generate(
+    output, source_tokens = generate(
         model, tokenizer, asm, cfg["max_source_tokens"], maximum,
         args.temperature, args.top_p, args.top_k, args.seed, policy, args.transport,
         args.sliding_window, args.cache_mode)
-    print(f"checkpoint={checkpoint} step={state['step']} source_tokens={source_tokens}"
-          f" truncated={str(truncated).lower()}", file=sys.stderr)
+    print(f"checkpoint={checkpoint} step={state['step']} source_tokens={source_tokens}",
+          file=sys.stderr)
     if reference is not None and args.show_reference:
         print("=== generated ===")
         print(output)

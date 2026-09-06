@@ -14,8 +14,9 @@ import numpy as np
 
 from .data import CachedPairDataset, MixedPairDataset, PairDataset
 from .board_eval import score_board_outputs
-from .model import PrefixLM, model_from_config
-from .tokenizer import EOS, PairTokenizer, load_tokenizer
+from .model import PrefixLM
+from .tokenizer import EOS, PairTokenizer
+from .runtime import dtype_for, load_config, model_and_tokenizer
 from .transport import RecursiveCarrierPolicy, policy_from_config
 from .carriers import expand_batch
 from .experiment import training_batch, record_run
@@ -41,10 +42,6 @@ def sample_train_windows(rng: np.random.Generator, spec, batch_size: int,
         windows = windows.copy()
         windows[full_rows] = full_window
     return mx.array(windows)
-
-
-def dtype_for(name: str):
-    return {"bf16": mx.bfloat16, "fp16": mx.float16, "fp32": mx.float32}[name]
 
 
 def as_mx(batch: dict[str, np.ndarray]) -> dict[str, mx.array]:
@@ -212,7 +209,7 @@ def main() -> None:
         parser.error("--metal-cache-mib must be non-negative")
     mx.set_cache_limit(args.metal_cache_mib * 1024**2)
     mx.reset_peak_memory()
-    cfg = json.loads(args.config.read_text())
+    cfg = load_config(args.config)
     if args.steps is not None:
         cfg["steps"] = args.steps
 
@@ -220,12 +217,7 @@ def main() -> None:
     policy_rng = np.random.default_rng(cfg["seed"] + 100_000)
     readout_rng = np.random.default_rng(cfg["seed"] + 300_000)
     mx.random.seed(cfg["seed"])
-    tokenizer = PairTokenizer(load_tokenizer(cfg["source_tokenizer"]),
-                              load_tokenizer(cfg["target_tokenizer"]),
-                              cfg.get("pause_token", False), cfg.get("pause_tokens"),
-                              cfg.get("distinct_pause_tokens", False),
-                              cfg.get("causal_pause", False),
-                              cfg.get("carrier_vocab", 0))
+    model, tokenizer = model_and_tokenizer(cfg)
     if cfg.get("cache_dir"):
         train = CachedPairDataset(cfg["cache_dir"], "train", tokenizer,
                                   bucket_size=cfg.get("length_bucket_size", 0))
@@ -246,8 +238,6 @@ def main() -> None:
     if (train.max_source_tokens != cfg["max_source_tokens"]
             or train.max_target_tokens != cfg["max_target_tokens"]):
         raise ValueError("configured token limits differ from the token cache")
-    model = model_from_config(tokenizer.source.vocab_size, tokenizer.target.vocab_size,
-                              cfg, dtype_for(cfg["dtype"]))
     # --resume wins: a config's init_checkpoint only applies to a fresh run.
     init_checkpoint = (Path(args.init_checkpoint) if args.init_checkpoint
                        else (Path(cfg["init_checkpoint"])

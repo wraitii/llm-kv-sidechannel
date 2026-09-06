@@ -27,58 +27,6 @@ def uniform_range(spec: int | list[int], name: str, minimum: int) -> tuple[int, 
 
 
 @dataclass(frozen=True)
-class RandomContiguousPolicy:
-    """Select non-overlapping random ``k``-token spans from a source prefix.
-
-    The final token of each span is deliberately retained: it can read the
-    preceding span, while later tokens cannot.  This keeps the only
-    differentiable route to the future through an ordinary token's hidden
-    state and K/V entries.
-    """
-
-    span_tokens: int = 16
-    spans_per_example: int = 3
-    min_source_tokens: int = 32
-    min_gap_tokens: int = 4
-    alignment: str = "token"
-
-    def __post_init__(self) -> None:
-        if self.alignment not in {"token", "move"}:
-            raise ValueError("alignment must be token or move")
-        if self.span_tokens < 2:
-            raise ValueError("span_tokens must include a carrier and be at least 2")
-        if self.spans_per_example < 1 or self.min_source_tokens < 1:
-            raise ValueError("span and minimum-source counts must be positive")
-        if self.min_gap_tokens < 0:
-            raise ValueError("min_gap_tokens must be non-negative")
-
-    def sample(self, source_lengths: np.ndarray,
-               rng: np.random.Generator) -> np.ndarray:
-        """Return padded [batch, span, (start, end, visible_until)] coordinates."""
-        result = np.full((len(source_lengths), self.spans_per_example, 3), -1,
-                         dtype=np.int32)
-        for row, source_length in enumerate(source_lengths.tolist()):
-            if source_length < max(self.min_source_tokens, self.span_tokens):
-                continue
-            chosen: list[tuple[int, int]] = []
-            # Rejection sampling avoids overlap and leaves a small unmasked
-            # region between relays, while preserving random placement.
-            for _ in range(self.spans_per_example * 32):
-                if len(chosen) == self.spans_per_example:
-                    break
-                start = int(rng.integers(0, source_length - self.span_tokens + 1))
-                carrier = start + self.span_tokens - 1
-                if any(not (carrier + self.min_gap_tokens < old_start or
-                            start > old_carrier + self.min_gap_tokens)
-                       for old_start, old_carrier in chosen):
-                    continue
-                chosen.append((start, carrier))
-            for index, (start, carrier) in enumerate(sorted(chosen)):
-                result[row, index] = (start, carrier, carrier)
-        return result
-
-
-@dataclass(frozen=True)
 class RecursiveBlockPolicy:
     """Deterministic block eviction with recursive survivor summarization.
 
@@ -107,15 +55,15 @@ class RecursiveBlockPolicy:
     gap_tokens: int | list[int] = 0
     group_size: int = 8
     depth: int = 2
-    alignment: str = "token"
+    alignment: str = "move"
 
     @staticmethod
     def _range(spec: int | list[int], name: str, minimum: int) -> tuple[int, int]:
         return uniform_range(spec, name, minimum)
 
     def __post_init__(self) -> None:
-        if self.alignment not in {"token", "move"}:
-            raise ValueError("alignment must be token or move")
+        if self.alignment != "move":
+            raise ValueError("transport policies require move alignment")
         self._range(self.hidden_tokens, "hidden_tokens", 1)
         self._range(self.survivor_tokens, "survivor_tokens", 1)
         self._range(self.gap_tokens, "gap_tokens", 0)
@@ -185,40 +133,29 @@ def max_carrier_tokens(policy_config: dict | None,
     """Upper bound on inserted carriers for any source up to the max length."""
     if not policy_config or policy_config.get("kind") != "recursive_carriers":
         return 0
-    h_lo, _ = uniform_range(policy_config.get("hidden_moves", policy_config.get("hidden_tokens", 4)),
-                            "hidden_tokens", 1)
-    g_lo, _ = uniform_range(policy_config.get("gap_moves", policy_config.get("gap_tokens", 0)),
-                            "gap_tokens", 0)
+    h_lo, _ = uniform_range(policy_config.get("hidden_moves", 4), "hidden_moves", 1)
+    g_lo, _ = uniform_range(policy_config.get("gap_moves", 0), "gap_moves", 0)
     _, c_hi = uniform_range(policy_config.get("carrier_tokens", 2),
                             "carrier_tokens", 1)
     periods = max_source_tokens // (h_lo + g_lo) + 1
     return periods * c_hi
 
 
-def policy_from_config(config: dict | None) -> (
-        RandomContiguousPolicy | RecursiveBlockPolicy | None):
-    """Resolve a policy config; future policy kinds extend this single seam."""
+def policy_from_config(config: dict | None) -> RecursiveBlockPolicy | None:
+    """Resolve one of the supported move-aligned transport policies."""
     if not config or config.get("kind", "none") == "none":
         return None
     kind = config.get("kind")
-    alignment = config.get("alignment", "token")
-    if alignment not in {"token", "move"}:
-        raise ValueError("alignment must be token or move")
-    # Legacy configs keep token semantics. New chess configs explicitly opt in
-    # and name move-count fields so changing units cannot go unnoticed.
+    alignment = config.get("alignment")
+    if alignment != "move":
+        raise ValueError("transport policies require alignment='move'")
     config = dict(config)
     for stem in ("hidden", "survivor", "gap"):
         move_key, token_key = f"{stem}_moves", f"{stem}_tokens"
+        if token_key in config:
+            raise ValueError(f"{token_key} is unsupported; use {move_key}")
         if move_key in config:
-            if alignment != "move" or token_key in config:
-                raise ValueError(f"{move_key} requires move alignment and no {token_key}")
             config[token_key] = config[move_key]
-    if kind == "random_contiguous":
-        return RandomContiguousPolicy(
-            span_tokens=config.get("span_tokens", 16),
-            spans_per_example=config.get("spans_per_example", 3),
-            min_source_tokens=config.get("min_source_tokens", 32),
-            min_gap_tokens=config.get("min_gap_tokens", 4), alignment=alignment)
     if kind == "recursive_carriers":
         return RecursiveCarrierPolicy(
             hidden_tokens=config.get("hidden_tokens", 4),
@@ -267,11 +204,11 @@ class RecursiveCarrierPolicy:
     gap_tokens: int | list[int] = 0
     group_size: int = 8
     depth: int = 2
-    alignment: str = "token"
+    alignment: str = "move"
 
     def __post_init__(self) -> None:
-        if self.alignment not in {"token", "move"}:
-            raise ValueError("alignment must be token or move")
+        if self.alignment != "move":
+            raise ValueError("transport policies require move alignment")
         uniform_range(self.hidden_tokens, "hidden_tokens", 1)
         uniform_range(self.carrier_tokens, "carrier_tokens", 1)
         uniform_range(self.gap_tokens, "gap_tokens", 0)

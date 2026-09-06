@@ -6,7 +6,6 @@
   "run_dir": "runs/controlled-swa-variable-readouts3",
   "source_tokenizer": "artifacts/tokenizers/chess-move-bpe-512-full.json",
   "target_tokenizer": "artifacts/tokenizers/chess-fen-bpe-512-full.json",
-  "attention_mode": "causal",
   "d_model": 416,
   "layers": 6,
   "heads": 8,

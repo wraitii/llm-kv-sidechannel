@@ -24,29 +24,17 @@ Dedicated carrier tokens are an optional experimental condition.
   at every step; previously deleted entries cannot return. No retained KV is
   rewritten during normal inference.
 
-The default Memento configs are **move-aligned**: `alignment: "move"`,
+Memento policies are **move-aligned**: `alignment: "move"`,
 `hidden_moves: [2,3]`, `gap_moves: [0,1]`, and (for ordinary survivors)
 `survivor_moves: 1`. Source block sizes are measured in complete UCI moves,
 including promotion suffixes and following whitespace. Carrier counts remain
-scratch-token counts. Boundaries are recovered from existing source tokens;
-no retokenization or cache rebuilding is needed.
+scratch-token counts. Boundaries are recovered from source tokens.
 
 Ordinary survivor moves remain whole through every recursion level; `group_size`
 counts survivor moves in that condition. In the explicit-carrier condition it
-counts scratch tokens. With `alignment: "token"`, the original `hidden_tokens`,
-`survivor_tokens`, and `gap_tokens` fields restore the token-based control.
-Legacy configs without `alignment` retain token semantics so old checkpoints can
-still be evaluated using their saved `runs/.../config.json`.
-
-Move-aligned configs write to `runs/controlled-memento-moves`,
-`runs/controlled-memento-swa32-moves`, and `runs/controlled-memento-carriers-moves`.
-Existing token-based runs and sweep results are unchanged. Alignment prevents
-partial moves, but does not guarantee that a block is a semantically complete
-reasoning episode. SWA itself is still measured in tokens.
-
-For token-based policies, `group_size` counts **individual survivor tokens** in both recursive policies.
-The carrier policy previously counted groups, so old carrier checkpoints were
-trained under different geometry. Both policies now share the recursion code.
+counts scratch tokens. Alignment prevents partial moves, but does not guarantee
+that a block is a semantically complete reasoning episode. SWA itself is still
+measured in tokens. Both policies share the recursion code.
 Intervening ordinary tokens can also relay information: these masks impose
 bottlenecks, not exclusive routing through the designated survivor positions.
 
@@ -101,9 +89,8 @@ requires a new `run_dir`. The baseline weights load unchanged; scored arms add
 small scoring heads and carrier arms may add embedding rows. Initialization
 starts a fresh optimizer; resume requires matching model parameters.
 
-The historical finetuning runs and configs have been removed. Only the 6k
-baseline checkpoint and its original metadata remain under `runs/baseline/`.
-`configs/baseline.json` is its evaluation config. New run manifests are immutable,
+The 6k baseline checkpoint and its original metadata remain under `runs/baseline/`.
+`configs/baseline.json` is its evaluation config. Run manifests are immutable,
 contain source hashes, and evaluation never overwrites them. Resume invocations
 are logged separately. Training data, training masks, and validation use separate
 RNG streams; validation uses a fixed seed.
@@ -220,15 +207,10 @@ supported. Attention-map capture for scored models is not implemented.
 Game-level splits keep state probes from one game together. Training uses a
 75% Lichess / 25% random-legal mixture in the supplied configs.
 
-New token caches use format v2: overlong source **or target** examples are dropped,
+Token caches use format v2: overlong source **or target** examples are dropped,
 not truncated while retaining an incompatible FEN. The ordinary data loader and
 standalone evaluator follow the same no-truncation rule. Tokenizer fingerprints
 are checked when loading caches.
-
-Existing v1 caches remain usable without rewriting data: rows at the source or
-target limit are conservatively excluded because exact-limit and truncated rows
-cannot be distinguished. A warning reports the exclusion count. Rebuilding to a
-new directory retains valid exact-limit examples:
 
 ```bash
 uv run --locked llmpr-cache \

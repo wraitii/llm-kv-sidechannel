@@ -1,17 +1,7 @@
 import mlx.core as mx
 import numpy as np
 
-from llmz.model import causal_mask, prefix_lm_mask, same_pass_transport_mask
-
-
-def test_prefix_bidirectional_target_causal_and_padding_hidden():
-    valid = mx.array([[True, True, True, True, True, False]])
-    mask = np.array(prefix_lm_mask(valid, mx.array([3])))
-    allowed = mask[0, 0] == 0
-    assert allowed[0].tolist() == [True, True, True, False, False, False]
-    assert allowed[2].tolist() == [True, True, True, False, False, False]
-    assert allowed[3].tolist() == [True, True, True, True, False, False]
-    assert allowed[4].tolist() == [True, True, True, True, True, False]
+from llmz.model import causal_mask, same_pass_transport_mask
 
 
 def test_causal_mask_never_exposes_a_future_or_padding_key():

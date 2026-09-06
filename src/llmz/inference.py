@@ -24,8 +24,8 @@ def prepare_prefix(tokenizer, rows, max_source_tokens, policy=None,
         source = tokenizer.encode_source(row["asm"])
         if len(source) > max_source_tokens:
             raise ValueError("overlong source: filter it instead of silently changing its FEN task")
-        ids = [BOS, *source, SEP, *tokenizer.pause_sequence()]
-        boundary = len(source) + 1 if tokenizer.causal_pause else len(ids)
+        ids = [BOS, *source, SEP]
+        boundary = len(ids)
         spans = np.empty((0, 3), dtype=np.int32)
         rng = np.random.default_rng(row_seed(row, seed))
         if isinstance(policy, RecursiveCarrierPolicy):

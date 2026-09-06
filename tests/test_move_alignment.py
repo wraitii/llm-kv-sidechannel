@@ -54,10 +54,9 @@ def test_move_aligned_carriers_and_native_inference_match_training():
     np.testing.assert_array_equal(np.asarray(spans), trained['transport_spans'])
 
 
-def test_legacy_configs_remain_token_based_and_ambiguous_units_fail():
-    assert policy_from_config({'kind':'recursive_blocks'}).alignment == 'token'
+def test_transport_configs_require_explicit_move_units():
     with pytest.raises(ValueError):
-        policy_from_config({'kind':'recursive_blocks', 'hidden_moves':2})
+        policy_from_config({'kind':'recursive_blocks'})
     with pytest.raises(ValueError):
         policy_from_config({'kind':'recursive_blocks', 'alignment':'move',
                             'hidden_moves':2, 'hidden_tokens':4})

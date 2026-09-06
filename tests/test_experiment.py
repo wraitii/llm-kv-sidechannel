@@ -22,14 +22,18 @@ def test_manifest_is_immutable_on_eval_and_resume(tmp_path):
 def test_carrier_full_attention_share_has_only_two_conditions():
     tok = PairTokenizer(BytesTokenizer(), BytesTokenizer(), carrier_vocab=2)
     policy = RecursiveCarrierPolicy(hidden_tokens=2, carrier_tokens=1)
-    batch = {"x": np.array([[1, 10, 11, 2]] * 8),
-             "valid": np.ones((8, 4), bool), "source_tokens": np.full(8, 2),
-             "prefix_lengths": np.full(8, 4), "output_positions": np.full((8, 1), 3)}
+    source = tok.encode_source("e2e4 e7e5 g1f3 b8c6")
+    row = [1, *source, 2]
+    batch = {"x": np.array([row] * 8),
+             "valid": np.ones((8, len(row)), bool),
+             "source_tokens": np.full(8, len(source)),
+             "prefix_lengths": np.full(8, len(row)),
+             "output_positions": np.full((8, 1), len(row) - 1)}
     rng = np.random.default_rng(10)
     observed = set()
     for _ in range(20):
         expanded, full = training_batch(batch, policy, tok, rng, 0.5)
         assert np.all(full == full[0])
         observed.add(bool(full[0]))
-        assert (expanded["x"].shape[1] == 4) == bool(full[0])
+        assert (expanded["x"].shape[1] == len(row)) == bool(full[0])
     assert observed == {True, False}

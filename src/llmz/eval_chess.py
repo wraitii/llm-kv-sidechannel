@@ -11,9 +11,10 @@ import numpy as np
 
 from .generate import decode_generated, sample_token
 from .board_eval import score_board_outputs
-from .tokenizer import BOS, EOS, PAD, SEP, PairTokenizer, load_tokenizer
-from .train import dtype_for, latest_checkpoint, load_model_checkpoint
-from .model import PrefixLM, model_from_config
+from .tokenizer import EOS, PairTokenizer
+from .runtime import load_config, model_and_tokenizer
+from .train import latest_checkpoint, load_model_checkpoint
+from .model import PrefixLM
 from .transport import RecursiveCarrierPolicy, policy_from_config
 
 
@@ -91,25 +92,18 @@ def main() -> None:
     parser.add_argument("--scored-recent-window", type=int,
                         help="override the scored model's recent window for a budget sweep")
     args = parser.parse_args()
-    cfg = json.loads(args.config.read_text())
+    cfg = load_config(args.config)
     if args.scored_recent_window is not None:
         if args.scored_recent_window < 1 or not cfg.get("scored_eviction"):
             parser.error("--scored-recent-window requires scored_eviction and a positive value")
         cfg["scored_eviction"] = {
             **cfg["scored_eviction"], "recent_window": args.scored_recent_window}
-    tokenizer = PairTokenizer(load_tokenizer(cfg["source_tokenizer"]),
-                              load_tokenizer(cfg["target_tokenizer"]),
-                              cfg.get("pause_token", False), cfg.get("pause_tokens"),
-                              cfg.get("distinct_pause_tokens", False),
-                              cfg.get("causal_pause", False),
-                              cfg.get("carrier_vocab", 0))
+    model, tokenizer = model_and_tokenizer(cfg)
     carrier_policy = policy_from_config(cfg.get("transport_policy"))
     if args.no_carriers and isinstance(carrier_policy, RecursiveCarrierPolicy):
         if args.transport:
             parser.error("--no-carriers cannot apply an inserted-carrier transport policy")
         carrier_policy = None
-    model = model_from_config(tokenizer.source.vocab_size, tokenizer.target.vocab_size,
-                              cfg, dtype_for(cfg["dtype"]))
     run_dir = Path(cfg["run_dir"])
     checkpoint = latest_checkpoint(run_dir) if args.checkpoint == "auto" else Path(args.checkpoint)
     state = load_model_checkpoint(checkpoint, model)

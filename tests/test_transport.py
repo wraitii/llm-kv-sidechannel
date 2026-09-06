@@ -2,20 +2,7 @@ import mlx.core as mx
 import numpy as np
 
 from llmz.model import same_pass_transport_mask
-from llmz.transport import RandomContiguousPolicy, RecursiveBlockPolicy, policy_from_config
-
-
-def test_random_spans_are_ordered_nonoverlapping_and_keep_a_carrier():
-    policy = RandomContiguousPolicy(span_tokens=4, spans_per_example=3,
-                                    min_source_tokens=4, min_gap_tokens=0)
-    spans = policy.sample(np.array([32, 3]), np.random.default_rng(7))
-    selected = spans[0][spans[0, :, 0] >= 0]
-    assert len(selected) == 3
-    assert np.all(selected[:, 1] - selected[:, 0] == 3)  # [start, carrier) hidden
-    assert np.all(selected[:, 2] == selected[:, 1])      # carrier is visible_until
-    assert np.all(selected[1:, 0] > selected[:-1, 1])
-    assert spans[1].tolist() == [[-1, -1, -1]] * 3
-    assert policy_from_config({"kind": "random_contiguous", "span_tokens": 4})
+from llmz.transport import RecursiveBlockPolicy, policy_from_config
 
 
 def test_transport_mask_keeps_carrier_but_hides_its_span_from_future():

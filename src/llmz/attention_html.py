@@ -20,9 +20,8 @@ from pathlib import Path
 import mlx.core as mx
 import numpy as np
 
-from .tokenizer import PairTokenizer, load_tokenizer
-from .train import dtype_for, latest_checkpoint, load_model_checkpoint
-from .model import model_from_config
+from .runtime import load_config, model_and_tokenizer
+from .train import latest_checkpoint, load_model_checkpoint
 from .inspect_attention import build_sequence, target_token_labels
 
 _TEMPLATE = """<!DOCTYPE html>
@@ -164,14 +163,8 @@ top5El.addEventListener('change', () => { pinned >= 0 ? show(pinned) : clear(); 
 
 
 def gather(config: Path, checkpoint: str, split: str, index: int):
-    cfg = json.loads(config.read_text())
-    tokenizer = PairTokenizer(load_tokenizer(cfg["source_tokenizer"]),
-                              load_tokenizer(cfg["target_tokenizer"]),
-                              cfg.get("pause_token", False), cfg.get("pause_tokens"),
-                              cfg.get("distinct_pause_tokens", False),
-                              cfg.get("causal_pause", False))
-    model = model_from_config(tokenizer.source.vocab_size, tokenizer.target.vocab_size,
-                              cfg, dtype_for(cfg["dtype"]))
+    cfg = load_config(config)
+    model, tokenizer = model_and_tokenizer(cfg)
     run_dir = Path(cfg["run_dir"])
     path = latest_checkpoint(run_dir) if checkpoint == "auto" else Path(checkpoint)
     state = load_model_checkpoint(path, model)
@@ -186,15 +179,15 @@ def gather(config: Path, checkpoint: str, split: str, index: int):
         else:
             raise SystemExit(f"index {index} not found in {handle.name}")
 
-    sequence, valid, prefix_lengths, labels, groups = build_sequence(
+    sequence, valid, prefix_lengths, spans, labels, groups = build_sequence(
         tokenizer, row, cfg)
     tokens = mx.array(sequence)
-    sliding = cfg.get("sliding_window") if model.attention_mode == "causal" else None
+    sliding = cfg.get("eval_sliding_window")
     _, maps = model.attention_maps(
-        tokens, mx.array(valid), mx.array(prefix_lengths), sliding_window=sliding)
+        tokens, mx.array(valid), mx.array(prefix_lengths),
+        transport_spans=mx.array(spans), sliding_window=sliding)
     attention = np.stack([np.asarray(p, dtype=np.float32)[0] for p in maps])
-    from .inspect_attention import source_pieces
-    n_source = len(source_pieces(tokenizer, row["asm"])[:cfg["max_source_tokens"]])
+    n_source = len(labels) - len(target_token_labels(tokenizer, row["code"])) - 3
     return attention, labels, groups, n_source, row, state, path, cfg
 
 
@@ -210,7 +203,7 @@ def render(attention: np.ndarray, labels: list, groups: list, n_source: int,
     meta = (f"{row.get('example_id', '?')} · plies={row.get('plies', '?')} · "
             f"fen={row['code']}<br>checkpoint={checkpoint.name} "
             f"(step {state.get('step')}) · layers={attention.shape[0]} · "
-            f"heads={attention.shape[1]} · mode={cfg.get('attention_mode', 'prefix')}")
+            f"heads={attention.shape[1]} · mode=causal")
     html = (_TEMPLATE
             .replace("__META__", meta)
             .replace("__LMAX__", str(attention.shape[0] - 1))

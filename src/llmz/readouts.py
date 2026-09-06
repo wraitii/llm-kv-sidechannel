@@ -24,8 +24,6 @@ def prepare_readouts(raw, policy, tokenizer, policy_rng, readout_rng,
     """
     if points < 1 or min_plies < 1:
         raise ValueError("readout points and minimum plies must be positive")
-    if tokenizer.pause_tokens:
-        raise ValueError("shared readouts currently require pause_tokens=0")
     sources = batch_sources(raw)
     width = max(map(len, sources)) + 2
     x = np.full((len(sources), width), PAD, dtype=np.int32)

@@ -15,8 +15,6 @@ from tokenizers.trainers import BpeTrainer
 
 SPECIAL_TOKENS = ["<pad>", "<bos>", "<fen>", "<eos>"]
 PAD, BOS, FEN_QUERY, EOS = range(4)
-# Backward-compatible internal name.  ID 2 is now explicitly the query
-# "represent the board as FEN now", not a generic source/target separator.
 SEP = FEN_QUERY
 BYTE_OFFSET = len(SPECIAL_TOKENS)
 
@@ -65,30 +63,13 @@ class PairTokenizer:
     """Map source and target lexical tokens into disjoint model namespaces."""
 
     def __init__(self, source: TextTokenizer, target: TextTokenizer,
-                 pause_token: bool = False, pause_tokens: int | None = None,
-                 distinct_pause_tokens: bool = False,
-                 causal_pause: bool = False,
                  carrier_vocab: int = 0):
         self.source = source
         self.target = target
-        self.pause_tokens = int(pause_token) if pause_tokens is None else pause_tokens
-        if self.pause_tokens < 0:
-            raise ValueError("pause_tokens must be non-negative")
         if carrier_vocab < 0:
             raise ValueError("carrier_vocab must be non-negative")
-        self.pause_token = self.pause_tokens > 0
-        self.distinct_pause_tokens = distinct_pause_tokens
-        self.causal_pause = causal_pause
         self.target_offset = source.vocab_size - len(SPECIAL_TOKENS)
         self.vocab_size = source.vocab_size + target.vocab_size - len(SPECIAL_TOKENS)
-        # Keep this model-only token outside both tokenizer namespaces. It is
-        # an input/embedding token, never a target-softmax class.
-        self.pause_ids = (list(range(self.vocab_size,
-                                     self.vocab_size + self.pause_tokens))
-                          if distinct_pause_tokens and self.pause_tokens
-                          else ([self.vocab_size] if self.pause_tokens else []))
-        self.pause_id = self.pause_ids[0] if self.pause_ids else None
-        self.vocab_size += len(self.pause_ids)
         # Memento carrier tokens: model-only scratch positions, cycled by
         # slot index within a carrier group.
         self.carrier_ids = list(range(self.vocab_size,
@@ -99,10 +80,6 @@ class PairTokenizer:
         if not self.carrier_ids:
             raise ValueError("no carrier tokens configured")
         return self.carrier_ids[slot % len(self.carrier_ids)]
-
-    def pause_sequence(self) -> list[int]:
-        return (self.pause_ids if self.distinct_pause_tokens
-                else self.pause_ids * self.pause_tokens)
 
     def encode_source(self, text: str) -> list[int]:
         return self.source.encode(text)

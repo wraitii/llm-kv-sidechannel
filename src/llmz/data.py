@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from pathlib import Path
 
 import numpy as np
@@ -10,7 +9,7 @@ import numpy as np
 from .tokenizer import BOS, EOS, PAD, SEP, PairTokenizer
 
 
-def batch_examples(examples: list[tuple], causal_pause: bool = False) -> dict[str, np.ndarray]:
+def batch_examples(examples: list[tuple]) -> dict[str, np.ndarray]:
     """Pack variable-length cached or freshly-tokenized pairs."""
     width = max(len(example[0]) - 1 for example in examples)
     x = np.full((len(examples), width), PAD, dtype=np.int32)
@@ -34,11 +33,7 @@ def batch_examples(examples: list[tuple], causal_pause: bool = False) -> dict[st
         y[row, target_start:length] = np.array([*target_local, EOS], dtype=np.int32)
         valid[row, :length] = True
         loss_mask[row, target_start:length] = 1.0
-        # The pause is a model-only input token. Treat it as the final
-        # bidirectional prefix position while its position remains excluded
-        # from the loss (its hidden state predicts the first target token).
-        prefix_lengths[row] = (sep_index if causal_pause and target_start > sep_index
-                               else target_start + int(target_start > sep_index))
+        prefix_lengths[row] = target_start + int(target_start > sep_index)
         target_bytes[row] = byte_count
         source_bytes[row] = source_byte_count
         source_tokens[row] = source_token_count
@@ -79,8 +74,6 @@ class PairDataset:
         target_local = self.tokenizer.encode_target_local(row["code"])
         target = self.tokenizer.target_local_to_model(target_local)
         sequence = [BOS, *source, SEP]
-        if self.tokenizer.pause_tokens:
-            sequence.extend(self.tokenizer.pause_sequence())
         sequence.extend([*target, EOS])
         sep_index = len(source) + 1
         retained_source = self.tokenizer.decode_source(source)
@@ -89,8 +82,7 @@ class PairDataset:
                 len(retained_source.encode("utf-8")), len(source), len(target) + 1)
 
     def batch(self, indices: np.ndarray) -> dict[str, np.ndarray]:
-        return batch_examples([self.encode(int(i)) for i in indices],
-                              self.tokenizer.causal_pause)
+        return batch_examples([self.encode(int(i)) for i in indices])
 
     def sample(self, rng: np.random.Generator, batch_size: int) -> dict[str, np.ndarray]:
         return self.batch(rng.integers(0, len(self), size=batch_size))
@@ -127,21 +119,10 @@ class CachedPairDataset:
         self.target_offsets = np.load(self.split_dir / "target-offsets.npy", mmap_mode="r")
         self.source_bytes = np.load(self.split_dir / "source-bytes.npy", mmap_mode="r")
         self.target_bytes = np.load(self.split_dir / "target-bytes.npy", mmap_mode="r")
-        # Legacy caches truncated silently. Exact-limit rows cannot be told
-        # apart from truncated rows, so conservatively exclude both in v1.
-        source_lengths = np.diff(self.source_offsets)
-        target_lengths = np.diff(self.target_offsets)
-        eligible = np.ones(self.rows, dtype=bool)
-        if metadata.get("format_version", 1) < 2:
-            eligible = ((source_lengths < self.max_source_tokens)
-                        & (target_lengths < self.max_target_tokens))
-        self.indices = np.flatnonzero(eligible)
-        self.skipped_overlong = self.rows - len(self.indices)
-        if self.skipped_overlong:
-            warnings.warn(f"{self.split_dir}: excluded {self.skipped_overlong} legacy "
-                          "cache rows at truncation limits; rebuild a v2 cache to retain exact-limit rows",
-                          stacklevel=2)
-        self.rows = len(self.indices)
+        if metadata.get("format_version") != 2:
+            raise ValueError(f"unsupported cache format in {self.cache_dir}; rebuild it")
+        self.indices = np.arange(self.rows)
+        self.skipped_overlong = 0
         if not self.rows:
             raise ValueError(f"no eligible examples in {self.split_dir}")
         self.bucket_size = bucket_size
@@ -160,16 +141,13 @@ class CachedPairDataset:
         target_local = self.target[self.target_offsets[index]:self.target_offsets[index + 1]].tolist()
         target = self.tokenizer.target_local_to_model(target_local)
         sequence = [BOS, *source, SEP]
-        if self.tokenizer.pause_tokens:
-            sequence.extend(self.tokenizer.pause_sequence())
         sequence.extend([*target, EOS])
         sep_index = len(source) + 1
         return (sequence, target_local, sep_index, int(self.target_bytes[index]),
                 int(self.source_bytes[index]), len(source), len(target) + 1)
 
     def batch(self, indices: np.ndarray) -> dict[str, np.ndarray]:
-        return batch_examples([self.encode(int(i)) for i in indices],
-                              self.tokenizer.causal_pause)
+        return batch_examples([self.encode(int(i)) for i in indices])
 
     def sample(self, rng: np.random.Generator, batch_size: int) -> dict[str, np.ndarray]:
         if not self.bucket_size:
@@ -214,4 +192,4 @@ class MixedPairDataset:
                         rng.integers(0, len(self.auxiliary), size=auxiliary_count))
         # Avoid tying source type to a fixed batch position.
         rng.shuffle(examples)
-        return batch_examples(examples, self.tokenizer.causal_pause)
+        return batch_examples(examples)

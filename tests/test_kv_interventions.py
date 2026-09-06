@@ -12,13 +12,14 @@ from llmz.transport import RecursiveCarrierPolicy
 def small_model(scored=None):
     mx.random.seed(123)
     return PrefixLM(260, 260, 32, 3, 4, 2, 128, dtype=mx.float32,
-                    attention_mode="causal", carrier_vocab=2, scored_eviction=scored)
+                    carrier_vocab=2, scored_eviction=scored)
 
 
 def test_variable_carrier_batches_match_single_row_prefill_and_decode():
     model = small_model()
     tok = PairTokenizer(BytesTokenizer(), BytesTokenizer(), carrier_vocab=2)
-    rows = [{"asm": "abcdefghijkl", "code": "x"}, {"asm": "xyz", "code": "y"}]
+    rows = [{"asm": "e2e4 e7e5 g1f3 b8c6", "code": "x"},
+            {"asm": "d2d4 d7d5", "code": "y"}]
     policy = RecursiveCarrierPolicy(hidden_tokens=[1, 3], carrier_tokens=[1, 2], group_size=3)
     for transport in (False, True):
         for mode in ("preserve", "restart", "restart-each"):

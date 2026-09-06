@@ -52,16 +52,6 @@ def test_external_embeddings_match_token_forward():
     assert mx.allclose(token_logits, embedding_logits).item()
 
 
-def test_pause_embedding_is_not_a_target_class():
-    model = PrefixLM(source_vocab_size=100, target_vocab_size=40,
-                     d_model=32, layers=1, heads=4, kv_heads=2,
-                     max_length=9, dtype=mx.float32, pause_token=True)
-    logits = model(mx.array([[1, 20, 2, 136]]),
-                   mx.array([[True, True, True, True]]), mx.array([4]))
-    assert model.embed.weight.shape == (137, 32)
-    assert logits.shape == (1, 4, 40)
-
-
 def test_cached_generation_matches_full_forward():
     mx.random.seed(7)
     model = PrefixLM(source_vocab_size=100, target_vocab_size=40,

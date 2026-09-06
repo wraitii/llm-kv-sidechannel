@@ -12,7 +12,7 @@ from llmz.tokenizer import PairTokenizer, BytesTokenizer
 def make_model(scored=None):
     mx.random.seed(41)
     return PrefixLM(260, 260, 32, 2, 4, 2, 160, dtype=mx.float32,
-                    attention_mode="causal", scored_eviction=scored)
+                    scored_eviction=scored)
 
 
 def raw_batch(tok):

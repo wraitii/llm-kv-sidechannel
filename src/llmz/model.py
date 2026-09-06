@@ -46,19 +46,6 @@ def apply_rope(x, cos, sin, offset: int = 0, positions=None):
     return x * cos + rotated * sin
 
 
-def prefix_lm_mask(valid, prefix_lengths, dtype=mx.float32):
-    """Build an additive [batch, 1, query, key] prefix-LM mask."""
-    length = valid.shape[1]
-    q = mx.arange(length)[None, :, None]
-    k = mx.arange(length)[None, None, :]
-    boundary = prefix_lengths[:, None, None]
-    allowed = mx.where(q < boundary, k < boundary,
-                       (k < boundary) | (k <= q))
-    allowed = allowed & valid[:, None, :]
-    return mx.where(allowed[:, None, :, :], mx.array(0, dtype=dtype),
-                    mx.array(-1e9, dtype=dtype))
-
-
 def _window_term(sliding_window, q, k):
     """Return the SWA band condition for a scalar or per-row window array."""
     window = mx.array(sliding_window) if isinstance(sliding_window, np.ndarray) else sliding_window
@@ -203,26 +190,17 @@ class PrefixLM(nn.Module):
     def __init__(self, source_vocab_size: int, target_vocab_size: int,
                  d_model: int, layers: int, heads: int,
                  kv_heads: int, max_length: int, dtype=mx.bfloat16,
-                 rope_theta: float = 500_000.0,
-                 pause_token: bool = False, pause_tokens: int | None = None,
-                 distinct_pause_tokens: bool = False,
-                 carrier_vocab: int = 0,
-                 attention_mode: str = "prefix", scored_eviction=None):
+                 rope_theta: float = 500_000.0, carrier_vocab: int = 0,
+                 scored_eviction=None):
         super().__init__()
-        pause_count = int(pause_token) if pause_tokens is None else pause_tokens
-        if pause_count < 0 or carrier_vocab < 0:
-            raise ValueError("pause_tokens and carrier_vocab must be non-negative")
+        if carrier_vocab < 0:
+            raise ValueError("carrier_vocab must be non-negative")
         self.max_length = max_length
-        if attention_mode not in {"prefix", "causal"}:
-            raise ValueError("attention_mode must be 'prefix' or 'causal'")
-        self.attention_mode = attention_mode
-        if scored_eviction and attention_mode != "causal":
-            raise ValueError("scored eviction requires causal attention")
+        self.attention_mode = "causal"
         self.source_vocab_size = source_vocab_size
         self.target_vocab_size = target_vocab_size
-        pause_vocab = pause_count if distinct_pause_tokens else int(pause_count > 0)
         vocab_size = (source_vocab_size + target_vocab_size - 4
-                      + pause_vocab + carrier_vocab)
+                      + carrier_vocab)
         hidden = 256 * ((int(8 * d_model / 3) + 255) // 256)
         self.embed = nn.Embedding(vocab_size, d_model)
         self.embed.weight = (
@@ -254,17 +232,11 @@ class PrefixLM(nn.Module):
         if embeddings.shape[1] > self.max_length:
             raise ValueError(
                 f"sequence length {embeddings.shape[1]} exceeds {self.max_length}")
-        if sliding_window is not None and self.attention_mode != "causal":
-            raise ValueError("sliding-window training requires a causal model")
         if transport_spans is not None and transport_spans.shape[1] > 0:
-            if self.attention_mode != "causal":
-                raise ValueError("transport masks require causal attention")
             mask = same_pass_transport_mask(
                 valid, transport_spans, embeddings.dtype, sliding_window)
-        elif self.attention_mode == "causal":
-            mask = causal_mask(valid, embeddings.dtype, sliding_window)
         else:
-            mask = prefix_lm_mask(valid, prefix_lengths, embeddings.dtype)
+            mask = causal_mask(valid, embeddings.dtype, sliding_window)
         h = embeddings
         for block in self.blocks:
             h = block(h, mask, capture=capture, valid=valid,
@@ -311,13 +283,9 @@ class PrefixLM(nn.Module):
             positions = mx.broadcast_to(mx.arange(tokens.shape[1]), tokens.shape)
         if int(mx.max(positions).item()) >= self.max_length:
             raise ValueError("position exceeds model maximum length")
-        if (sliding_window is not None or transport_spans is not None) and self.attention_mode != "causal":
-            raise ValueError("eviction evaluation requires a causal model")
         h = self.embed(tokens)
-        mask = (additive_mask(visibility(positions, positions, valid,
+        mask = additive_mask(visibility(positions, positions, valid,
                                         transport_spans, sliding_window), h.dtype)
-                if self.attention_mode == "causal"
-                else prefix_lm_mask(valid, prefix_lengths, h.dtype))
         layers, alive, alive_history, retention_scores = [], [], [], []
         for block in self.blocks:
             q, k, v = block._qkv(h, positions=positions)
@@ -463,8 +431,6 @@ class PrefixLM(nn.Module):
         discarded tokens cannot contribute as keys at any reconstruction step.
         The original token identities stay in dense storage solely for replay.
         """
-        if self.attention_mode != "causal":
-            raise ValueError("restart intervention requires causal attention")
         survivors = visibility(cache.next_positions[:, None], cache.positions,
                                cache.valid, cache.spans, sliding_window)[:, 0]
         h = self.embed(cache.tokens)
@@ -492,17 +458,13 @@ class PrefixLM(nn.Module):
 
 def model_from_config(source_vocab_size: int, target_vocab_size: int,
                       cfg: dict, dtype) -> PrefixLM:
-    pause_tokens = cfg.get("pause_tokens", int(cfg.get("pause_token", False)))
-    distinct_pause_tokens = cfg.get("distinct_pause_tokens", False)
     carrier_vocab = int(cfg.get("carrier_vocab", 0))
     max_length = (cfg["max_source_tokens"] + cfg["max_target_tokens"] + 2
-                  + pause_tokens + max_carrier_tokens(
+                  + max_carrier_tokens(
                       cfg.get("transport_policy"), cfg["max_source_tokens"]))
     return PrefixLM(
         source_vocab_size, target_vocab_size, cfg["d_model"], cfg["layers"],
         cfg["heads"], cfg["kv_heads"], max_length,
-        dtype=dtype, rope_theta=cfg.get("rope_theta", 500_000.0), pause_tokens=pause_tokens,
-        distinct_pause_tokens=distinct_pause_tokens,
+        dtype=dtype, rope_theta=cfg.get("rope_theta", 500_000.0),
         carrier_vocab=carrier_vocab,
-        attention_mode=cfg.get("attention_mode", "prefix"),
         scored_eviction=cfg.get("scored_eviction"))

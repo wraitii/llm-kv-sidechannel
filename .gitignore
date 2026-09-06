@@ -1,6 +1,11 @@
 .venv/
 __pycache__/
 .pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
 *.py[cod]
 .DS_Store
 .coverage
@@ -19,6 +24,7 @@ data/**
 !data/**/
 !data/**/manifest.json
 artifacts/
+evaluations/
 runs/**
 !runs/**/
 !runs/**/config.json

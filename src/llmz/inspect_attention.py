@@ -17,9 +17,11 @@ from pathlib import Path
 import mlx.core as mx
 import numpy as np
 
-from .tokenizer import BOS, EOS, PAD, SEP, PairTokenizer, load_tokenizer
-from .train import dtype_for, latest_checkpoint, load_model_checkpoint
-from .model import model_from_config
+from .tokenizer import EOS, PairTokenizer
+from .runtime import load_config, model_and_tokenizer
+from .train import latest_checkpoint, load_model_checkpoint
+from .transport import policy_from_config
+from .inference import prepare_prefix
 
 
 def pretty(token: str) -> str:
@@ -90,36 +92,47 @@ def target_token_labels(tokenizer: PairTokenizer, code: str) -> list[str]:
 
 def build_sequence(tokenizer: PairTokenizer, row: dict, cfg: dict) -> tuple:
     """Teacher-forced single-example inputs plus token/group label tables."""
-    source = tokenizer.encode_source(row["asm"])[:cfg["max_source_tokens"]]
-    target = tokenizer.encode_target(row["code"])[:cfg["max_target_tokens"]]
+    source = tokenizer.encode_source(row["asm"])
+    target = tokenizer.encode_target(row["code"])
+    if (len(source) > cfg["max_source_tokens"]
+            or len(target) > cfg["max_target_tokens"]):
+        raise ValueError("example exceeds configured token limits")
     pieces = source_pieces(tokenizer, row["asm"])[:len(source)]
-
     move_of_char = char_move_map(row["asm"])
+    policy = policy_from_config(cfg.get("transport_policy"))
+    prefix, _, prefix_lengths, spans = prepare_prefix(
+        tokenizer, [row], cfg["max_source_tokens"], policy,
+        transport=bool(policy and cfg.get("transport_eval", False)))
+    prefix_ids = np.asarray(prefix)[0].tolist()
     source_labels, source_groups = ["<bos>"], [-1]
-    for (piece, start, _), token_id in zip(pieces, source, strict=True):
-        source_labels.append(pretty(piece))
-        source_groups.append(move_of_char.get(start, -1))
-    source_labels.append("<sep>")
+    piece_index = 0
+    for token_id in prefix_ids[1:-1]:
+        if token_id in tokenizer.carrier_ids:
+            source_labels.append(f"<carrier:{tokenizer.carrier_ids.index(token_id)}>")
+            source_groups.append(None)
+        else:
+            piece, start, _ = pieces[piece_index]
+            source_labels.append(pretty(piece))
+            source_groups.append(move_of_char.get(start, -1))
+            piece_index += 1
+    source_labels.append("<fen>")
     source_groups.append(-1)
-
-    tokens = [BOS, *source, SEP, *target, EOS]
+    tokens = [*prefix_ids, *target, EOS]
     labels = source_labels + target_token_labels(tokenizer, row["code"]) + ["<eos>"]
     groups = source_groups + [None] * (len(target) + 1)
-
     sequence = np.array([tokens], dtype=np.int32)
     valid = np.ones_like(sequence, dtype=np.bool_)
-    prefix_length = len(source) + 2 + tokenizer.pause_tokens
-    prefix_lengths = np.array([prefix_length], dtype=np.int32)
-    return sequence, valid, prefix_lengths, labels, groups
+    return sequence, valid, np.asarray(prefix_lengths), np.asarray(spans), labels, groups
 
 
 def attention_tensor(model, tokenizer, row, cfg, layers, heads):
-    sequence, valid, prefix_lengths, labels, groups = build_sequence(
+    sequence, valid, prefix_lengths, spans, labels, groups = build_sequence(
         tokenizer, row, cfg)
     tokens = mx.array(sequence)
-    sliding = cfg.get("sliding_window") if model.attention_mode == "causal" else None
+    sliding = cfg.get("eval_sliding_window")
     _, maps = model.attention_maps(
-        tokens, mx.array(valid), mx.array(prefix_lengths), sliding_window=sliding)
+        tokens, mx.array(valid), mx.array(prefix_lengths),
+        transport_spans=mx.array(spans), sliding_window=sliding)
     # capture entries are [batch=1, heads, query, key]; drop the batch axis.
     probs = np.stack([np.asarray(p, dtype=np.float32) for p in maps])[:, 0]
     if layers == "last":
@@ -130,12 +143,8 @@ def attention_tensor(model, tokenizer, row, cfg, layers, heads):
         head_index = [int(v) for v in heads.split(",")]
     else:
         head_index = list(range(probs.shape[1]))
-    return (probs[layer_index][:, head_index], labels, groups,
-            len(source_pieces(tokenizer, row["asm"])[:cfg["max_source_tokens"]]))
-
-
-def group_mass(probs: np.ndarray, groups: list, n_source: int) -> np.ndarray:
-    """Unused placeholder removed."""
+    n_source = int(prefix_lengths[0]) - 2
+    return probs[layer_index][:, head_index], labels, groups, n_source
 
 
 def bar(value: float, scale: float, width: int = 24) -> str:
@@ -273,14 +282,8 @@ def main() -> None:
     parser.add_argument("--png", action="store_true")
     args = parser.parse_args()
 
-    cfg = json.loads(args.config.read_text())
-    tokenizer = PairTokenizer(load_tokenizer(cfg["source_tokenizer"]),
-                              load_tokenizer(cfg["target_tokenizer"]),
-                              cfg.get("pause_token", False), cfg.get("pause_tokens"),
-                              cfg.get("distinct_pause_tokens", False),
-                              cfg.get("causal_pause", False))
-    model = model_from_config(tokenizer.source.vocab_size, tokenizer.target.vocab_size,
-                              cfg, dtype_for(cfg["dtype"]))
+    cfg = load_config(args.config)
+    model, tokenizer = model_and_tokenizer(cfg)
     run_dir = Path(cfg["run_dir"])
     checkpoint = (latest_checkpoint(run_dir) if args.checkpoint == "auto"
                   else Path(args.checkpoint))
