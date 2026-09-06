@@ -52,8 +52,7 @@ runs/baseline/checkpoint-0006000.npz
 
 New configs in `configs/controlled/` initialize from that checkpoint and write to
 new `runs/controlled-*` directories. They share training data, optimization,
-seed, and 2,000 finetuning steps. The scored arm uses a 5% full-context escape
-mixture; the other supplied configs use none:
+seed, 2,000 finetuning steps, and endpoint-only FEN supervision:
 
 | Config | Training constraint | Native training-time validation |
 | --- | --- | --- |
@@ -69,12 +68,6 @@ SWA-32 and scored 24+8 have the same maximum number of visible entries per layer
 Memento masks have a variable visible-token budget. Inserted carriers also alter
 sequence length and the number of original moves covered by a fixed window;
 those comparisons should not be described as matched-compute experiments.
-
-Each controlled config trains on three FEN readouts from one sampled move
-history. The endpoint is always included and up to two earlier complete-move
-boundaries are sampled. The history transformer pass is shared; the three
-teacher-forced FEN continuations are parallel branches with independent cache
-snapshots. Set `training_readouts` to 1 to recover endpoint-only training.
 
 ```bash
 uv sync --extra dev
@@ -94,12 +87,6 @@ The 6k baseline checkpoint and its original metadata remain under `runs/baseline
 contain source hashes, and evaluation never overwrites them. Resume invocations
 are logged separately. Training data, training masks, and validation use separate
 RNG streams; validation uses a fixed seed.
-
-With shared readouts, `full_attention_share` is sampled once per history and the
-choice applies to all of its FEN branches. For scored eviction it bypasses the
-learned budget and keeps the full causal history. For SWA it uses a full-width
-window, and for ordinary Memento masks it removes the transport spans. Carrier
-arms select whole plain microbatches because their sequence layout differs.
 
 ## Paired KV-restart evaluation
 
@@ -176,22 +163,9 @@ useful information into future survivors.
 
 Each KV entry is scored once, when it crosses out of the recent window. That
 priority is stored with the cache entry and reused for later selections; old
-entries are not rescored at every query. Shared readout snapshots mask priorities
-that had not yet been assigned at that point, preventing later moves from leaking
-scores into an earlier branch. Because priorities are immutable, training computes
-the top-M support for all sequence positions in one batched operation; cached
-inference still updates the support once per generated token.
-
-The scored config also samples one local support counterfactual in 5% of
-microbatches. At one readout and layer it swaps up to two retained old entries
-with two discarded old entries, compares the two FEN losses, and applies a small
-pairwise loss to order their scores toward the better support. This adds an
-explicit negative without changing the normal hard-selection forward pass.
-`negative_score_probability`, `negative_score_weight`, and
-`negative_score_swaps` control this experiment. Four alternatives are evaluated
-in parallel by default (`negative_score_alternatives`). Training logs report the
-mean alternative-minus-selected loss and the fraction of alternatives that beat
-the selected support.
+entries are not rescored at every query. Because priorities are immutable,
+training computes the top-M support for all sequence positions in one batched
+operation; cached inference updates the support once per generated token.
 
 The implementation uses per-layer policies shared across attention heads and a
 partial top-k selection rather than sorting the whole cache. Cache
@@ -199,8 +173,8 @@ storage remains dense and evicted entries are masked. This intentionally favors
 clear experimental semantics over memory savings. There is no claim that the
 scorer has learned useful transport until the trained checkpoints are evaluated.
 Scored training is a separate arm; combining it with static transport or SWA
-training constraints is currently rejected. A full-context escape mixture is
-supported. Attention-map capture for scored models is not implemented.
+training constraints is currently rejected. Attention-map capture for scored
+models is not implemented.
 
 ## Data and cache integrity
 

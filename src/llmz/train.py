@@ -21,16 +21,10 @@ from .transport import RecursiveCarrierPolicy, policy_from_config
 from .carriers import expand_batch
 from .experiment import training_batch, record_run
 from .move_alignment import sample_transport, batch_sources
-from .readouts import prepare_readouts, shared_readout_loss
 
 
-def sample_train_windows(rng: np.random.Generator, spec, batch_size: int,
-                         full_rows: np.ndarray, full_window: int):
-    """Per-row training windows: fixed scalar, [low, high] range, or none.
-
-    Rows in ``full_rows`` get ``full_window`` (a window wide enough to cover
-    the whole sequence), i.e. ordinary full attention for that share.
-    """
+def sample_train_windows(rng: np.random.Generator, spec, batch_size: int):
+    """Per-row training windows: fixed scalar, [low, high] range, or none."""
     if spec is None:
         return None
     if isinstance(spec, list):
@@ -38,9 +32,6 @@ def sample_train_windows(rng: np.random.Generator, spec, batch_size: int,
         windows = rng.integers(lo, hi + 1, size=batch_size).astype(np.int32)
     else:
         windows = np.full(batch_size, spec, dtype=np.int32)
-    if full_rows is not None and full_rows.any():
-        windows = windows.copy()
-        windows[full_rows] = full_window
     return mx.array(windows)
 
 
@@ -215,7 +206,6 @@ def main() -> None:
 
     rng = np.random.default_rng(cfg["seed"])
     policy_rng = np.random.default_rng(cfg["seed"] + 100_000)
-    readout_rng = np.random.default_rng(cfg["seed"] + 300_000)
     mx.random.seed(cfg["seed"])
     model, tokenizer = model_and_tokenizer(cfg)
     if cfg.get("cache_dir"):
@@ -267,30 +257,9 @@ def main() -> None:
                              "or a [low, high] range")
         if model.attention_mode != "causal":
             raise ValueError("train_sliding_window requires attention_mode='causal'")
-    full_attention_share = float(cfg.get("full_attention_share", 0.0))
-    if not 0.0 <= full_attention_share < 1.0:
-        raise ValueError("full_attention_share must be in [0, 1)")
-    training_readouts = int(cfg.get("training_readouts", 3))
-    if training_readouts < 1:
-        raise ValueError("training_readouts must be positive")
-    negative_probability = float(cfg.get("negative_score_probability", 0.0))
-    if not 0.0 <= negative_probability <= 1.0:
-        raise ValueError("negative_score_probability must be in [0, 1]")
-    if negative_probability and not cfg.get("scored_eviction"):
-        raise ValueError("negative scorer examples require scored_eviction")
-    if float(cfg.get("negative_score_weight", 0.1)) < 0:
-        raise ValueError("negative_score_weight must be non-negative")
-    if int(cfg.get("negative_score_swaps", 2)) < 1:
-        raise ValueError("negative_score_swaps must be positive")
-    if int(cfg.get("negative_score_alternatives", 4)) < 1:
-        raise ValueError("negative_score_alternatives must be positive")
     if cfg.get("scored_eviction") and (transport_policy is not None
             or train_sliding_window is not None):
         raise ValueError("scored_eviction is a separate arm; omit transport_policy and train_sliding_window")
-    if cfg.get("scored_eviction") and full_attention_share and training_readouts == 1:
-        raise ValueError("scored full-attention escape requires shared training readouts")
-    # A window at least this wide covers every legal query/key pair.
-    full_window = model.max_length + 1
     parameter_count = sum(value.size for _, value in
                           tree_flatten(model.trainable_parameters()))
     run_dir = Path(cfg["run_dir"])
@@ -325,8 +294,6 @@ def main() -> None:
         rng.bit_generator.state = state["numpy_rng_state"]
         if "policy_rng_state" in state:
             policy_rng.bit_generator.state = state["policy_rng_state"]
-        if "readout_rng_state" in state:
-            readout_rng.bit_generator.state = state["readout_rng_state"]
         print(f"resumed {checkpoint} at step {start_step}", flush=True)
 
     def loss_fn(active_model, x, output_y, valid, prefix_lengths,
@@ -339,18 +306,6 @@ def main() -> None:
 
     value_and_grad = nn.value_and_grad(model, loss_fn)
 
-    def readout_loss_fn(active_model, source_x, source_valid, spans, points,
-                        branch_x, branch_y, branch_valid, sliding_windows,
-                        negative, full_rows):
-        return shared_readout_loss(
-            active_model, source_x, source_valid, spans, points,
-            branch_x, branch_y, branch_valid, sliding_windows, negative,
-            cfg.get("negative_score_weight", 0.1),
-            cfg.get("negative_score_swaps", 2),
-            cfg.get("negative_score_alternatives", 4), True,
-            full_rows)
-
-    readout_value_and_grad = nn.value_and_grad(model, readout_loss_fn)
     fixed_eval_indices = None
     if args.fixed_eval_seed is not None:
         count = min(cfg["eval_batches"] * cfg["batch_size"], len(val))
@@ -486,59 +441,29 @@ def main() -> None:
     def elapsed() -> float:
         return prior_elapsed + time.time() - started
 
-    logged_cf_delta = logged_cf_better = logged_cf_count = 0.0
     for step in range(start_step + 1, cfg["steps"] + 1):
         gradients = None
         train_loss = 0.0
-        counterfactual_delta = counterfactual_better = counterfactual_count = 0.0
         for _ in range(cfg["grad_accum"]):
             batch_np = train.sample(rng, cfg["batch_size"])
-            if training_readouts > 1:
-                prepared = prepare_readouts(
-                    batch_np, transport_policy, tokenizer, policy_rng,
-                    readout_rng, training_readouts,
-                    cfg.get("min_readout_plies", 8), cfg["max_target_tokens"],
-                    negative_probability, cfg["layers"], full_attention_share)
-                sliding_windows = sample_train_windows(
-                    policy_rng, train_sliding_window, len(prepared["source_x"]),
-                    prepared["full_rows"], full_window)
-                batch = as_mx({key: value for key, value in prepared.items()
-                               if isinstance(value, np.ndarray)})
-                (loss, cf_delta, cf_better, cf_count), grad = readout_value_and_grad(
-                    model, batch["source_x"], batch["source_valid"],
-                    batch["spans"], batch["points"], batch["branch_x"],
-                    batch["branch_y"], batch["branch_valid"], sliding_windows,
-                    batch["negative"], batch["full_rows"])
-                counterfactual_delta += float(cf_delta.item())
-                counterfactual_better += float(cf_better.item())
-                counterfactual_count += float(cf_count.item())
-                target_count = int(batch["branch_valid"].sum().item())
-                model_count = (int(batch["source_valid"].sum().item())
-                               + target_count)
-            else:
-                batch_np, full_rows = training_batch(
-                    batch_np, transport_policy, tokenizer, policy_rng,
-                    full_attention_share)
-                sliding_windows = sample_train_windows(
-                    policy_rng, train_sliding_window, len(batch_np["x"]),
-                    full_rows, full_window)
-                batch = as_mx(batch_np)
-                loss, grad = value_and_grad(
-                    model, batch["x"], batch["output_y"], batch["valid"],
-                    batch["prefix_lengths"], batch["output_positions"],
-                    batch["output_mask"], batch["transport_spans"],
-                    sliding_windows)
-                target_count = int(batch["output_mask"].sum().item())
-                model_count = int(batch["valid"].sum().item())
+            batch_np = training_batch(
+                batch_np, transport_policy, tokenizer, policy_rng)
+            sliding_windows = sample_train_windows(
+                policy_rng, train_sliding_window, len(batch_np["x"]))
+            batch = as_mx(batch_np)
+            loss, grad = value_and_grad(
+                model, batch["x"], batch["output_y"], batch["valid"],
+                batch["prefix_lengths"], batch["output_positions"],
+                batch["output_mask"], batch["transport_spans"],
+                sliding_windows)
+            target_count = int(batch["output_mask"].sum().item())
+            model_count = int(batch["valid"].sum().item())
             grad = tree_map(lambda value: value / cfg["grad_accum"], grad)
             gradients = grad if gradients is None else tree_map(
                 lambda left, right: left + right, gradients, grad)
             train_loss += float(loss.item()) / cfg["grad_accum"]
             target_tokens_seen += target_count
             model_tokens_seen += model_count
-        logged_cf_delta += counterfactual_delta
-        logged_cf_better += counterfactual_better
-        logged_cf_count += counterfactual_count
         gradients, grad_norm = optim.clip_grad_norm(gradients, 1.0)
         optimizer.update(model, gradients)
         mx.eval(model.parameters(), optimizer.state)
@@ -551,15 +476,8 @@ def main() -> None:
                       "active_memory_mib": mx.get_active_memory() / 1024**2,
                       "cache_memory_mib": mx.get_cache_memory() / 1024**2,
                       "peak_memory_mib": mx.get_peak_memory() / 1024**2}
-            if logged_cf_count:
-                record["counterfactual_mean_loss_delta"] = (
-                    logged_cf_delta / logged_cf_count)
-                record["counterfactual_better_rate"] = (
-                    logged_cf_better / logged_cf_count)
-                record["counterfactual_count"] = int(logged_cf_count)
             log(record)
             print(json.dumps(record), flush=True)
-            logged_cf_delta = logged_cf_better = logged_cf_count = 0.0
         if step % cfg["eval_every"] == 0 or step == cfg["steps"]:
             record = {"event": "eval", "step": step,
                       "target_tokens_seen": target_tokens_seen,
@@ -576,7 +494,6 @@ def main() -> None:
                 "elapsed_s": elapsed(),
                 "numpy_rng_state": rng.bit_generator.state,
                 "policy_rng_state": policy_rng.bit_generator.state,
-                "readout_rng_state": readout_rng.bit_generator.state,
                 "training_config": run_config,
                 "parameter_count": parameter_count,
             })

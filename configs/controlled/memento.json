@@ -3,7 +3,7 @@
   "cache_dir": "data/cache/chess-move-bpe512-fen512-full-s256-t96",
   "random_cache_dir": "data/cache/chess-random-50k-move-bpe512-fen512-s256-t96",
   "random_train_weight": 0.25,
-  "run_dir": "runs/controlled-memento-moves-readouts3",
+  "run_dir": "runs/controlled-memento",
   "source_tokenizer": "artifacts/tokenizers/chess-move-bpe-512-full.json",
   "target_tokenizer": "artifacts/tokenizers/chess-fen-bpe-512-full.json",
   "d_model": 416,
@@ -30,8 +30,6 @@
   "dtype": "bf16",
   "seed": 1337,
   "init_checkpoint": "runs/baseline/checkpoint-0006000.npz",
-  "training_readouts": 3,
-  "full_attention_share": 0.0,
   "transport_policy": {
     "kind": "recursive_blocks",
     "group_size": 3,

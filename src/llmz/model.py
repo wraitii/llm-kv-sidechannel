@@ -277,7 +277,7 @@ class PrefixLM(nn.Module):
             transport_spans, sliding_window)
 
     def prefill(self, tokens, valid, prefix_lengths, sliding_window=None,
-                transport_spans=None, positions=None, full_rows=None):
+                transport_spans=None, positions=None):
         """Compute KVs while preserving per-row positions, padding, and eviction state."""
         if positions is None:
             positions = mx.broadcast_to(mx.arange(tokens.shape[1]), tokens.shape)
@@ -286,7 +286,7 @@ class PrefixLM(nn.Module):
         h = self.embed(tokens)
         mask = additive_mask(visibility(positions, positions, valid,
                                         transport_spans, sliding_window), h.dtype)
-        layers, alive, alive_history, retention_scores = [], [], [], []
+        layers, alive, retention_scores = [], [], []
         for block in self.blocks:
             q, k, v = block._qkv(h, positions=positions)
             attended = None
@@ -294,17 +294,9 @@ class PrefixLM(nn.Module):
             if block.retention is not None:
                 gates, live, stored_scores = block.retention.sequence(
                     block.n1(h), v, positions, valid)
-                if full_rows is not None:
-                    causal = ((positions[:, None, :] <= positions[:, :, None])
-                              & valid[:, None, :])
-                    gates = mx.where(full_rows[:, None, None],
-                                     causal.astype(mx.float32), gates)
-                    live = mx.where(full_rows[:, None], valid, live)
                 attended = gated_attention(q, k, v, gates, block.head_dim ** -0.5, mask)
-                alive_history.append(mx.stop_gradient(gates > 0.5))
                 retention_scores.append(stored_scores)
             else:
-                alive_history.append(None)
                 retention_scores.append(None)
             h = block._finish(h, q, k, v, mask, attended)
             layers.append((k, v))
@@ -315,11 +307,9 @@ class PrefixLM(nn.Module):
         next_positions = mx.max(mx.where(valid, positions, -1), axis=1) + 1
         logits = self._output(self.norm(h[mx.arange(tokens.shape[0]), last][:, None]))
         return logits, KVState(layers, tokens, positions, valid, next_positions,
-                               transport_spans, alive, alive_history,
-                               retention_scores)
+                               transport_spans, alive, retention_scores)
 
-    def decode(self, tokens, cache, sliding_window=None, forced_alive=None,
-               selection_trace=None):
+    def decode(self, tokens, cache, sliding_window=None, forced_alive=None):
         """Advance one token, with absolute positions independent of stored slots."""
         if tokens.shape[1] != 1:
             raise ValueError("cached decoding expects exactly one token")
@@ -350,8 +340,6 @@ class PrefixLM(nn.Module):
                 if forced_alive is None:
                     live, gate = block.retention.select(
                         stored_scores, eligible, positions, position[:, 0])
-                    if selection_trace is not None:
-                        selection_trace.append((stored_scores, eligible, live))
                 else:
                     live = forced_alive[index]
                     gate = live.astype(mx.float32)
@@ -364,64 +352,6 @@ class PrefixLM(nn.Module):
                              positions, valid, position[:, 0] + 1, cache.spans,
                              alive, retention_scores=retention_scores)
         return self._output(self.norm(h)), next_cache
-
-    def continue_sequence(self, tokens, token_valid, cache, sliding_window=None,
-                          first_forced_alive=None, selection_trace=None,
-                          full_rows=None):
-        """Score a teacher-forced continuation in parallel from a shared cache."""
-        length = tokens.shape[1]
-        offsets = mx.arange(length)[None]
-        query_positions = cache.next_positions[:, None] + offsets
-        if int(mx.max(query_positions).item()) >= self.max_length:
-            raise ValueError("position exceeds model maximum length")
-        positions = mx.concatenate([cache.positions, query_positions], axis=1)
-        valid = mx.concatenate([cache.valid, token_valid], axis=1)
-        h = self.embed(tokens)
-        mask = additive_mask(visibility(query_positions, positions, valid,
-                                        cache.spans, sliding_window), h.dtype)
-        for index, (block, (old_k, old_v)) in enumerate(
-                zip(self.blocks, cache, strict=True)):
-            q, new_k, new_v = block._qkv(h, positions=query_positions)
-            k = mx.concatenate([old_k, new_k], axis=2)
-            v = mx.concatenate([old_v, new_v], axis=2)
-            attended = None
-            if block.retention is not None:
-                scores = mx.concatenate(
-                    [cache.retention_scores[index],
-                     mx.zeros(token_valid.shape, dtype=mx.float32)], axis=1)
-                scores = block.retention.continuation_scores(
-                    block.n1(h), v, scores, query_positions,
-                    cache.positions.shape[1])
-                eligible = mx.concatenate(
-                    [cache.alive[index], mx.zeros(token_valid.shape, dtype=mx.bool_)],
-                    axis=1)
-                eligible = eligible | mx.concatenate(
-                    [mx.zeros(cache.valid.shape, dtype=mx.bool_), token_valid], axis=1)
-                if first_forced_alive is not None:
-                    forced = first_forced_alive[index]
-                    eligible = mx.concatenate(
-                        [forced[:, :cache.positions.shape[1]], token_valid], axis=1)
-                live, gate = block.retention.select_sequence(
-                    scores, eligible, positions, query_positions)
-                if first_forced_alive is not None:
-                    live = mx.concatenate([first_forced_alive[index][:, None],
-                                           live[:, 1:]], axis=1)
-                    gate = mx.concatenate(
-                        [first_forced_alive[index][:, None].astype(mx.float32),
-                         gate[:, 1:]], axis=1)
-                if full_rows is not None:
-                    full_live = (valid[:, None, :]
-                                 & (positions[:, None, :]
-                                    <= query_positions[:, :, None]))
-                    live = mx.where(full_rows[:, None, None], full_live, live)
-                    gate = mx.where(full_rows[:, None, None],
-                                    full_live.astype(mx.float32), gate)
-                if selection_trace is not None:
-                    selection_trace.append((scores, eligible, live[:, 0]))
-                attended = gated_attention(
-                    q, k, v, gate, block.head_dim ** -0.5, mask)
-            h = block._finish(h, q, k, v, mask, attended)
-        return self._output(self.norm(h))
 
     def restart(self, cache, sliding_window=None, forced_keep=None):
         """Rebuild surviving KVs before the next query, without changing positions.

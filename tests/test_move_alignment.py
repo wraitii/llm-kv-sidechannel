@@ -47,7 +47,7 @@ def test_move_aligned_carriers_and_native_inference_match_training():
     ids = np.array([[1, *source, 2]])
     batch = dict(x=ids, valid=np.ones(ids.shape, bool), source_tokens=np.array([len(source)]),
                  prefix_lengths=np.array([ids.shape[1]]), output_positions=np.array([[ids.shape[1]-1]]))
-    trained, _ = training_batch(batch, policy, tok, np.random.default_rng(0))
+    trained = training_batch(batch, policy, tok, np.random.default_rng(0))
     prefix, valid, _, spans = prepare_prefix(tok, [{'asm':tok.decode_source(source)}], 64,
                                            policy, transport=True)
     np.testing.assert_array_equal(np.asarray(prefix), trained['x'])

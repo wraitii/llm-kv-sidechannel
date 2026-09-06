@@ -11,30 +11,23 @@ from .transport import RecursiveCarrierPolicy
 from .move_alignment import sample_transport, batch_sources
 
 
-def training_batch(batch, policy, tokenizer, rng, full_attention_share=0.0):
-    """Return batch and full-attention rows; carrier mixtures use whole batches."""
+def training_batch(batch, policy, tokenizer, rng):
+    """Apply the configured transport policy to a normal endpoint batch."""
     count = len(batch["x"])
     if isinstance(policy, RecursiveCarrierPolicy):
-        plain = rng.random() < full_attention_share if full_attention_share else False
-        full_rows = np.full(count, plain)
-        if plain:
-            batch = dict(batch)
-            batch["transport_spans"] = np.full((count, 0, 3), -1, dtype=np.int32)
-        else:
-            batch, spans, _ = expand_batch(batch, sample_transport(policy, batch_sources(batch), tokenizer, rng),
-                                           policy, tokenizer.carrier_ids, rng=rng)
-            batch["transport_spans"] = spans
+        batch, spans, _ = expand_batch(
+            batch, sample_transport(policy, batch_sources(batch), tokenizer, rng),
+            policy, tokenizer.carrier_ids, rng=rng)
+        batch["transport_spans"] = spans
     else:
-        full_rows = rng.random(count) < full_attention_share if full_attention_share else np.zeros(count, bool)
         batch = dict(batch)
         if policy is None:
             spans = np.full((count, 0, 3), -1, dtype=np.int32)
         else:
             spans = sample_transport(policy, batch_sources(batch), tokenizer, rng)
             spans = np.where(spans >= 0, spans + 1, spans).astype(np.int32)
-            spans[full_rows] = -1
         batch["transport_spans"] = spans
-    return batch, full_rows
+    return batch
 
 
 def record_run(run_dir: Path, config: dict, resume=False, eval_only=False):

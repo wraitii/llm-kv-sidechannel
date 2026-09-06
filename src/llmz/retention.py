@@ -60,30 +60,6 @@ class RetentionScorer(nn.Module):
             [assigned, mx.zeros((h.shape[0], self.window), dtype=mx.float32)],
             axis=1)
 
-    def continuation_scores(self, h, values, stored_scores, query_positions,
-                            history_length):
-        """Assign all scores that will cross the boundary in this continuation."""
-        length = h.shape[1]
-        flat = values.transpose(0, 2, 1, 3).reshape(
-            values.shape[0], values.shape[2], -1)
-        candidate_positions = query_positions - self.window
-        start = query_positions[:, :1]
-        indices = mx.where(candidate_positions < start, candidate_positions,
-                           history_length + candidate_positions - start)
-        usable = indices >= 0
-        clipped = mx.maximum(indices, 0)
-        batch = mx.arange(h.shape[0])[:, None]
-        candidates = flat[batch, clipped]
-        assigned = (mx.sum(self.query(h).astype(mx.float32)
-                           * self.key(candidates).astype(mx.float32), axis=-1)
-                    * self.scale
-                    + self.priority(candidates).astype(mx.float32)[:, :, 0])
-        slots = mx.arange(flat.shape[1])[None, None, :] == indices[:, :, None]
-        slots = slots & usable[:, :, None]
-        updates = mx.sum(assigned[:, :, None] * slots, axis=1)
-        touched = mx.any(slots, axis=1)
-        return mx.where(touched, updates, stored_scores)
-
     def select(self, scores, eligible, positions, query_position):
         """Select from previous survivors + new entry; deleted entries never return."""
         recent = eligible & (positions > query_position[:, None] - self.window)

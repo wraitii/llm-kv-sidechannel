@@ -11,8 +11,7 @@ class KVState(list):
     evicted entries may remain physically allocated, but cannot be attended to.
     """
     def __init__(self, layers, tokens, positions, valid, next_positions,
-                 spans=None, alive=None, alive_history=None,
-                 retention_scores=None):
+                 spans=None, alive=None, retention_scores=None):
         super().__init__(layers)
         self.tokens = tokens
         self.positions = positions
@@ -20,7 +19,6 @@ class KVState(list):
         self.next_positions = next_positions
         self.spans = spans
         self.alive = alive
-        self.alive_history = alive_history
         self.retention_scores = retention_scores
 
 
