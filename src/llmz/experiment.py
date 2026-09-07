@@ -11,10 +11,13 @@ from .transport import RecursiveCarrierPolicy, StreamingLogPolicy
 from .move_alignment import sample_transport, batch_sources
 
 
-def training_batch(batch, policy, tokenizer, rng):
+def training_batch(batch, policy, tokenizer, rng, full_attention=False):
     """Apply the configured transport policy to a normal endpoint batch."""
     count = len(batch["x"])
-    if isinstance(policy, StreamingLogPolicy):
+    if full_attention:
+        batch = dict(batch)
+        batch["transport_spans"] = np.full((count, 0, 3), -1, dtype=np.int32)
+    elif isinstance(policy, StreamingLogPolicy):
         if batch["x"].shape[1] > policy.horizon:
             raise ValueError("streaming log horizon is shorter than training sequence")
         batch = dict(batch)

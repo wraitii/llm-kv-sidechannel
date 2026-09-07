@@ -1,18 +1,40 @@
 import mlx.core as mx
 import mlx.nn as nn
 import numpy as np
+import pytest
 from mlx.utils import tree_flatten
 
 from llmz.model import PrefixLM
 from llmz.inference import DecodeSession, prepare_prefix
 from llmz.tokenizer import PairTokenizer, BytesTokenizer
 from llmz.transport import RecursiveCarrierPolicy
+from llmz.retention import soft_topk
 
 
 def small_model(scored=None):
     mx.random.seed(123)
     return PrefixLM(260, 260, 32, 3, 4, 2, 128, dtype=mx.float32,
                     carrier_vocab=2, scored_eviction=scored)
+
+
+def test_scored_attention_capture_preserves_output_and_hard_budget():
+    model = small_model(dict(recent_window=3, memory_tokens=2, score_dim=8))
+    tokens = mx.array([[1, 5, 6, 7, 8, 9, 10, 11, 12]])
+    valid = mx.ones(tokens.shape, dtype=mx.bool_)
+    boundary = mx.array([5])
+    expected = model.hidden(tokens, valid, boundary)
+    actual, maps = model.attention_maps(tokens, valid, boundary)
+    assert mx.array_equal(expected, actual).item()
+    for attention in maps:
+        p = np.asarray(attention)
+        np.testing.assert_allclose(p.sum(axis=-1), 1, atol=1e-6)
+        support = (p > 0).any(axis=1)[0]
+        assert (support.sum(axis=-1) <= 5).all()
+        assert not np.triu(support, k=1).any()
+        for query in range(tokens.shape[1]):
+            assert support[query, max(0, query - 2):query + 1].all()
+            if query:
+                assert not (support[query, :query] & ~support[query - 1, :query]).any()
 
 
 def test_streaming_expiry_training_cached_and_restart_equivalence():
@@ -169,6 +191,23 @@ def test_scored_hard_budget_causality_and_cached_equivalence():
     assert mx.allclose(shorter, longer[:, :6], atol=3e-6, rtol=3e-5).item()
 
 
+def test_scored_delay_cached_equivalence_and_validation():
+    tokens = mx.array([[1, 10, 11, 12, 13, 14, 15, 16, 2]])
+    valid = mx.ones(tokens.shape, dtype=mx.bool_)
+    for delay in (0, 1, 2):
+        model = small_model({"recent_window": 2, "memory_tokens": 2,
+                             "score_dim": 8, "scoring_delay": delay})
+        _, cache = model.prefill(tokens[:, :3], valid[:, :3], mx.array([9]))
+        for t in range(3, tokens.shape[1]):
+            logits, cache = model.decode(tokens[:, t:t + 1], cache)
+            direct = model(tokens[:, :t + 1], valid[:, :t + 1],
+                           mx.array([9]), mx.array([[t]]))
+            assert mx.allclose(logits, direct, atol=3e-6, rtol=3e-5).item()
+    with pytest.raises(ValueError, match="scoring delay"):
+        small_model({"recent_window": 2, "memory_tokens": 2,
+                     "scoring_delay": 3})
+
+
 def test_scored_future_loss_trains_scorer_and_backbone():
     model = small_model({"recent_window": 2, "memory_tokens": 1, "score_dim": 8})
     tokens = mx.array([[1, 10, 11, 12, 13, 14, 2]])
@@ -182,6 +221,50 @@ def test_scored_future_loss_trains_scorer_and_backbone():
     assert scorer and all(bool(mx.all(mx.isfinite(v))) for v in scorer)
     assert sum(float(mx.sum(mx.abs(v))) for v in scorer) > 1e-8
     assert float(mx.sum(mx.abs(gradients["embed.weight"]))) > 1e-8
+
+
+def test_soft_topk_conserves_budget_and_has_competitive_gradients():
+    scores = mx.array([[0.2, -0.3, 1.1, 0.7], [0.1, 0.2, 0.3, 0.4]])
+    eligible = mx.array([[True, True, True, True], [True, False, True, False]])
+    gates = soft_topk(scores, eligible, 2, 0.7)
+    mx.eval(gates)
+    np.testing.assert_allclose(np.asarray(gates).sum(axis=-1), [2, 2], atol=2e-6)
+    np.testing.assert_array_equal(np.asarray(gates)[1], [1, 0, 1, 0])
+
+    def selected_mass(x):
+        return soft_topk(x, mx.ones(x.shape, dtype=mx.bool_), 2, 0.7)[0, 0]
+    grad = mx.grad(selected_mass)(scores[:1])
+    mx.eval(grad)
+    assert float(grad[0, 0]) > 0
+    assert float(mx.sum(grad[0, 1:])) < 0
+    assert abs(float(mx.sum(grad))) < 1e-5
+
+
+def test_soft_topk_uses_hard_forward_during_training_and_inference():
+    config = {"recent_window": 2, "memory_tokens": 2, "score_dim": 8,
+              "training_method": "soft_topk"}
+    model = small_model(config)
+    tokens = mx.array([[1, 10, 11, 12, 13, 14, 2]])
+    valid = mx.ones(tokens.shape, dtype=mx.bool_)
+    hard = model(tokens, valid, mx.array([7]))
+    soft = model(tokens, valid, mx.array([7]), scored_training_temperature=0.8)
+    mx.eval(hard, soft)
+    assert mx.array_equal(hard, soft).item()
+
+    _, cache = model.prefill(tokens, valid, mx.array([7]))
+    for alive in cache.alive:
+        assert int(alive.sum()) <= 4
+
+    def loss(m):
+        logits = m(tokens, valid, mx.array([7]), mx.array([[6]]),
+                   scored_training_temperature=0.8)
+        return nn.losses.cross_entropy(
+            logits.astype(mx.float32), mx.array([[4]])).mean()
+    value, grad = nn.value_and_grad(model, loss)(model)
+    mx.eval(value, grad)
+    scorer = [v for k, v in tree_flatten(grad) if ".retention." in k]
+    assert scorer and all(bool(mx.all(mx.isfinite(v))) for v in scorer)
+    assert sum(float(mx.sum(mx.abs(v))) for v in scorer) > 1e-8
 
 
 def test_scored_priorities_are_assigned_once_and_remain_stable():

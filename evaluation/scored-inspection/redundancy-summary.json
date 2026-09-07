@@ -1,0 +1,14 @@
+[
+  {
+    "scored_during_source": true,
+    "matched_tokens": 82,
+    "return_rejection_rate": 0.8028455284552846,
+    "control_rejection_rate": 0.8333333333333334
+  },
+  {
+    "scored_during_source": false,
+    "matched_tokens": 44,
+    "return_rejection_rate": 0.8901515151515151,
+    "control_rejection_rate": 0.8598484848484849
+  }
+]

@@ -259,9 +259,18 @@ def main() -> None:
                              "or a [low, high] range")
         if model.attention_mode != "causal":
             raise ValueError("train_sliding_window requires attention_mode='causal'")
+    full_attention_share = float(cfg.get("full_attention_share", 0.0))
+    if not 0.0 <= full_attention_share <= 1.0:
+        raise ValueError("full_attention_share must be in [0, 1]")
     if cfg.get("scored_eviction") and (transport_policy is not None
             or train_sliding_window is not None):
         raise ValueError("scored_eviction is a separate arm; omit transport_policy and train_sliding_window")
+    scored_cfg = cfg.get("scored_eviction") or {}
+    soft_topk = scored_cfg.get("training_method", "hard_st") == "soft_topk"
+    soft_temperature_start = float(scored_cfg.get("temperature_start", 1.0))
+    soft_temperature_end = float(scored_cfg.get("temperature_end", soft_temperature_start))
+    if soft_topk and (soft_temperature_start <= 0 or soft_temperature_end <= 0):
+        raise ValueError("Soft-TopK temperatures must be positive")
     parameter_count = sum(value.size for _, value in
                           tree_flatten(model.trainable_parameters()))
     run_dir = Path(cfg["run_dir"])
@@ -299,9 +308,12 @@ def main() -> None:
         print(f"resumed {checkpoint} at step {start_step}", flush=True)
 
     def loss_fn(active_model, x, output_y, valid, prefix_lengths,
-                output_positions, output_mask, transport_spans, sliding_windows):
+                output_positions, output_mask, transport_spans, sliding_windows,
+                full_attention, scored_training_temperature):
         logits = active_model(x, valid, prefix_lengths, output_positions,
-                              transport_spans, sliding_windows).astype(mx.float32)
+                              transport_spans, sliding_windows,
+                              full_attention,
+                              scored_training_temperature).astype(mx.float32)
         losses = nn.losses.cross_entropy(logits, output_y)
         denominator = mx.maximum(mx.sum(output_mask), 1)
         return mx.sum(losses * output_mask) / denominator
@@ -448,20 +460,28 @@ def main() -> None:
         return prior_elapsed + time.time() - started
 
     for step in range(start_step + 1, cfg["steps"] + 1):
+        progress = (step - 1) / max(cfg["steps"] - 1, 1)
+        scored_training_temperature = (
+            soft_temperature_start
+            * (soft_temperature_end / soft_temperature_start) ** progress
+            if soft_topk else None)
         gradients = None
         train_loss = 0.0
         for _ in range(cfg["grad_accum"]):
             batch_np = train.sample(rng, cfg["batch_size"])
+            full_attention = (policy_rng.random() < full_attention_share
+                              if full_attention_share else False)
             batch_np = training_batch(
-                batch_np, transport_policy, tokenizer, policy_rng)
-            sliding_windows = sample_train_windows(
-                policy_rng, train_sliding_window, len(batch_np["x"]))
+                batch_np, transport_policy, tokenizer, policy_rng,
+                full_attention=full_attention)
+            sliding_windows = (None if full_attention else sample_train_windows(
+                policy_rng, train_sliding_window, len(batch_np["x"])))
             batch = as_mx(batch_np)
             loss, grad = value_and_grad(
                 model, batch["x"], batch["output_y"], batch["valid"],
                 batch["prefix_lengths"], batch["output_positions"],
                 batch["output_mask"], batch["transport_spans"],
-                sliding_windows)
+                sliding_windows, full_attention, scored_training_temperature)
             target_count = int(batch["output_mask"].sum().item())
             model_count = int(batch["valid"].sum().item())
             grad = tree_map(lambda value: value / cfg["grad_accum"], grad)
@@ -482,6 +502,8 @@ def main() -> None:
                       "active_memory_mib": mx.get_active_memory() / 1024**2,
                       "cache_memory_mib": mx.get_cache_memory() / 1024**2,
                       "peak_memory_mib": mx.get_peak_memory() / 1024**2}
+            if soft_topk:
+                record["scored_training_temperature"] = scored_training_temperature
             log(record)
             print(json.dumps(record), flush=True)
         if step % cfg["eval_every"] == 0 or step == cfg["steps"]:

@@ -28,6 +28,94 @@ the total budget; discarded entries never return. `full` disables eviction.
 This sweep uses the step-1000 checkpoint, batch size 8, and the same 32 examples.
 Raw results: [streaming-log16x16-step-1000.jsonl](streaming-log16x16-step-1000.jsonl).
 
+Memento carriers uses `runs/controlled-memento-carriers/checkpoint-0001000.npz`
+with inserted carrier tokens enabled in both conditions. `Memento carriers on`
+applies the configured recursive carrier transport; `off` uses ordinary full/SWA
+attention over the same carrier-augmented sequences. As above, `full` means no
+additional SWA constraint. Both sweeps ran sequentially with batch size 8, using
+the same 32 eligible examples, seed, windows, and cache modes as the other arms.
+Raw results: [transport on](memento-carriers-on-step-1000.jsonl) and
+[transport off](memento-carriers-off-step-1000.jsonl).
+
+Variable SWA low-full uses
+`runs/controlled-swa-variable-lowfull/checkpoint-0001000.npz`. Unlike the
+earlier variable-SWA arm, 5% of its training microbatches used full attention,
+and its sampled SWA range was shorter (8–32 rather than 16–48), making the
+constrained training condition harder. The sweep uses the same 32 examples,
+seed, windows, cache modes, and batch size as the other finetune arms. Raw
+results: [swa-variable-lowfull-step-1000.jsonl](swa-variable-lowfull-step-1000.jsonl).
+
+Scored soft-top-k uses
+`runs/controlled-scored-soft-topk/checkpoint-0001000.npz`. It has the same
+scored-retention architecture and 3:1 recent-to-memory budget split as Scored,
+but uses the budget-coupled soft-top-k surrogate for its scorer gradient. A
+straight-through correction keeps the training forward pass identical to hard
+top-k inference. The sweep otherwise matches the same examples, seed, budgets,
+cache modes, and batch size. Raw results:
+[scored-soft-topk-step-1000.jsonl](scored-soft-topk-step-1000.jsonl).
+
+Scored soft-top-k delay 0 uses
+`runs/controlled-scored-soft-topk-delay0/checkpoint-0001000.npz` and differs
+only by assigning each entry's immutable score immediately from its own hidden
+state, rather than when it crosses the 24-token recent window. Raw results:
+[scored-soft-topk-delay0-step-1000.jsonl](scored-soft-topk-delay0-step-1000.jsonl).
+The same arm is also shown at step 2000 as a training-progress comparison, not
+a matched-training-compute result. Raw results:
+[scored-soft-topk-delay0-step-2000.jsonl](scored-soft-topk-delay0-step-2000.jsonl).
+
+To reproduce, run this command to completion, then repeat it without `--transport`
+and change the output filename from `on` to `off`:
+
+```bash
+.venv/bin/llmpr-eval-chess \
+  --config configs/controlled/memento-carriers.json \
+  --checkpoint runs/controlled-memento-carriers/checkpoint-0001000.npz \
+  --examples 32 --batch-size 8 --seed 1337 --split val --temperatures 0 \
+  --windows full,128,64,48,32,24,16 \
+  --cache-modes preserve,restart,restart-each --teacher-forced --transport \
+  > evaluation/memento-carriers-on-step-1000.jsonl
+```
+
+The low-full variable-SWA arm was reproduced with:
+
+```bash
+.venv/bin/llmpr-eval-chess \
+  --config configs/controlled/swa-variable-lowfull.json \
+  --checkpoint runs/controlled-swa-variable-lowfull/checkpoint-0001000.npz \
+  --examples 32 --batch-size 8 --seed 1337 --split val --temperatures 0 \
+  --windows full,128,64,48,32,24,16 \
+  --cache-modes preserve,restart,restart-each --teacher-forced \
+  > evaluation/swa-variable-lowfull-step-1000.jsonl
+```
+
+The soft-top-k scored arm used true full attention for its control, followed by
+one invocation per scored budget:
+
+```bash
+.venv/bin/llmpr-eval-chess \
+  --config configs/controlled/scored-soft-topk.json \
+  --checkpoint runs/controlled-scored-soft-topk/checkpoint-0001000.npz \
+  --examples 32 --batch-size 8 --seed 1337 --split val --temperatures 0 \
+  --windows full --cache-modes preserve,restart,restart-each --teacher-forced \
+  --disable-scoring \
+  > evaluation/scored-soft-topk-step-1000.jsonl
+
+for budget in 128 64 48 32 24 16; do
+  .venv/bin/llmpr-eval-chess \
+    --config configs/controlled/scored-soft-topk.json \
+    --checkpoint runs/controlled-scored-soft-topk/checkpoint-0001000.npz \
+    --examples 32 --batch-size 8 --seed 1337 --split val --temperatures 0 \
+    --windows full --cache-modes preserve,restart,restart-each --teacher-forced \
+    --scored-budget "$budget" \
+    >> evaluation/scored-soft-topk-step-1000.jsonl
+done
+```
+
+The delay-0 arm was reproduced with the same commands after replacing
+`scored-soft-topk` with `scored-soft-topk-delay0` in the config, checkpoint,
+and output paths. Its step-2000 sweep additionally replaces `0001000`/`1000`
+with `0002000`/`2000` in the checkpoint and output paths.
+
 ## Teacher-forced NLL per token
 
 Lower is better.
@@ -51,6 +139,36 @@ Lower is better.
 |     32 | 3.525 / 3.612 / 3.779 | 0.478 / 0.804 / 1.300 | 0.440 / 1.386 / 2.506 |
 |     24 | 4.254 / 4.326 / 4.387 | 1.008 / 1.248 / 1.714 | 0.754 / 1.974 / 3.089 |
 |     16 | 4.757 / 4.843 / 4.979 | 1.835 / 1.997 / 2.127 | 1.918 / 3.190 / 3.665 |
+
+| Window | Memento carriers on   | Memento carriers off  |
+|-------:|----------------------:|----------------------:|
+|   full | 0.777 / 1.167 / 1.167 | 1.224 / 1.224 / 1.224 |
+|    128 | 0.854 / 1.225 / 1.205 | 1.055 / 1.050 / 1.033 |
+|     64 | 0.967 / 1.230 / 1.234 | 0.866 / 0.900 / 0.912 |
+|     48 | 1.024 / 1.248 / 1.265 | 0.915 / 0.958 / 0.978 |
+|     32 | 1.162 / 1.323 / 1.496 | 1.060 / 1.101 / 1.339 |
+|     24 | 1.389 / 1.511 / 1.812 | 1.313 / 1.360 / 1.714 |
+|     16 | 1.892 / 1.966 / 2.253 | 1.852 / 1.898 / 2.217 |
+
+| Window | Variable SWA low-full  |
+|-------:|-----------------------:|
+|   full | 0.285 / 0.285 / 0.285  |
+|    128 | 0.315 / 0.316 / 0.324  |
+|     64 | 0.412 / 0.462 / 0.658  |
+|     48 | 0.463 / 0.580 / 0.838  |
+|     32 | 0.538 / 0.746 / 1.218  |
+|     24 | 0.623 / 0.825 / 1.400  |
+|     16 | 0.810 / 0.976 / 1.613  |
+
+| Budget | Scored soft-top-k       | Delay 0, 1K               | Delay 0, 2K               |
+|-------:|------------------------:|--------------------------:|--------------------------:|
+|   full | 0.772 / 0.772 / 0.772   | 0.741 / 0.741 / 0.741     | 0.724 / 0.724 / 0.724     |
+|    128 | 0.756 / 0.764 / 0.762   | 0.719 / 0.720 / 0.712     | 0.682 / 0.688 / 0.696     |
+|     64 | 0.499 / 0.547 / 0.660   | 0.565 / 0.596 / 0.691     | 0.482 / 0.539 / 0.682     |
+|     48 | 0.455 / 0.540 / 0.776   | 0.553 / 0.645 / 0.806     | 0.438 / 0.577 / 0.871     |
+|     32 | 0.511 / 0.750 / 1.247   | 0.609 / 0.790 / 1.170     | 0.478 / 0.818 / 1.245     |
+|     24 | 0.840 / 1.185 / 1.795   | 0.963 / 1.188 / 1.674     | 0.787 / 1.170 / 1.804     |
+|     16 | 1.925 / 2.238 / 2.179   | 1.884 / 2.035 / 2.110     | 1.931 / 2.103 / 2.280     |
 
 ## Greedy generation
 
@@ -77,5 +195,35 @@ cell are separated by semicolons and ordered `P; R; RE`.
 |     32 | `14/ 0/21.07; 10/ 0/19.70;  2/ 0/22.50` | `32/ 3/ 7.50; 31/ 3/11.90;  9/ 0/12.67` | `32/ 5/ 6.84; 32/ 4/16.56; 21/ 0/21.33` |
 |     24 | ` 0/ 0/  n/a;  0/ 0/  n/a;  0/ 0/  n/a` | ` 9/ 1/ 6.22;  9/ 1/ 8.33;  7/ 0/22.43` | `27/ 2/10.30; 27/ 2/19.93;  6/ 0/25.83` |
 |     16 | ` 0/ 0/  n/a;  0/ 0/  n/a;  0/ 0/  n/a` | ` 0/ 0/  n/a;  2/ 0/23.50;  1/ 0/36.00` | ` 2/ 0/21.00;  1/ 0/27.00;  0/ 0/  n/a` |
+
+| Window | Memento carriers on                  | Memento carriers off                 |
+|-------:|:-------------------------------------|:-------------------------------------|
+|   full | `32/0/15.69; 32/0/20.88; 32/0/20.88` | `11/1/ 7.73; 11/1/ 7.73; 11/1/ 7.73` |
+|    128 | `32/0/16.53; 32/0/21.81; 32/0/21.78` | `15/1/11.47; 14/1/11.00; 15/1/10.93` |
+|     64 | `32/0/18.28; 32/0/21.88; 31/0/22.32` | `32/1/13.03; 31/1/13.97; 32/1/14.69` |
+|     48 | `32/0/18.84; 32/0/23.47; 29/0/24.00` | `32/1/14.47; 32/1/15.22; 31/1/17.32` |
+|     32 | `30/0/21.00; 25/0/24.04;  9/0/21.67` | `29/0/16.97; 30/0/18.53; 17/0/19.00` |
+|     24 | ` 8/0/20.00;  5/0/18.60;  1/0/15.00` | `11/0/14.82;  9/0/17.44;  3/0/24.33` |
+|     16 | ` 0/0/  n/a;  1/0/20.00;  2/0/28.00` | ` 1/0/16.00;  0/0/  n/a;  1/0/28.00` |
+
+| Window | Variable SWA low-full                 |
+|-------:|:--------------------------------------|
+|   full | `30/4/ 3.73; 30/4/ 3.73; 30/4/ 3.73` |
+|    128 | `30/4/ 3.70; 30/4/ 3.67; 30/4/ 4.07` |
+|     64 | `30/3/ 5.53; 31/3/ 6.48; 29/2/ 8.45` |
+|     48 | `32/2/ 6.28; 32/2/ 7.84; 32/1/12.16` |
+|     32 | `32/3/ 8.03; 31/3/12.06; 26/0/16.19` |
+|     24 | `30/2/10.87; 32/2/15.84; 13/0/20.00` |
+|     16 | `31/0/14.26; 31/0/19.84; 13/0/25.69` |
+
+| Budget | Scored soft-top-k                      | Delay 0, 1K                             | Delay 0, 2K                             |
+|-------:|:---------------------------------------|:----------------------------------------|:----------------------------------------|
+|   full | `14/2/ 6.71; 14/2/ 6.71; 14/2/ 6.71` | `16/1/ 6.94; 16/1/ 6.94; 16/1/ 6.94`  | `14/1/ 6.29; 14/1/ 6.29; 14/1/ 6.29`  |
+|    128 | `14/2/ 6.71; 14/2/ 6.71; 14/2/ 6.71` | `19/1/ 7.84; 18/1/ 7.78; 19/1/ 7.74`  | `14/1/ 6.29; 14/1/ 6.29; 14/1/ 6.29`  |
+|     64 | `23/2/ 6.87; 25/2/ 7.04; 26/2/ 8.81` | `28/1/ 8.61; 30/1/ 8.90; 30/1/ 9.87`  | `29/1/ 7.17; 29/1/ 7.59; 30/1/ 9.53`  |
+|     48 | `30/3/ 6.70; 32/3/ 8.38; 32/3/10.62` | `31/2/ 8.10; 32/2/ 9.50; 31/1/11.35`  | `32/2/ 6.88; 32/2/ 8.59; 28/1/10.93`  |
+|     32 | `32/3/ 7.84; 32/3/11.62; 16/0/15.06` | `32/1/ 9.09; 32/1/11.69; 10/0/13.40`  | `32/3/ 7.38; 31/3/11.19; 10/0/11.80`  |
+|     24 | `11/0/10.91;  9/0/19.89;  0/0/  n/a` | `14/0/13.29;  7/0/18.14;  1/0/21.00`  | `12/0/11.50; 10/0/15.10;  3/0/23.00`  |
+|     16 | ` 0/0/  n/a;  0/0/  n/a;  0/0/  n/a` | ` 0/0/  n/a;  0/0/  n/a;  1/0/22.00`  | ` 1/0/25.00;  2/0/21.00;  3/0/28.67`  |
 
 Results are exploratory because the sweep contains only 32 examples.

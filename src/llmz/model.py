@@ -166,15 +166,15 @@ class Block(nn.Module):
         gate, up = mx.split(self.mlp_in(self.n2(x)), 2, axis=-1)
         return x + self.down(nn.silu(gate) * up)
 
-    def __call__(self, x, mask, capture=None, valid=None, positions=None):
+    def __call__(self, x, mask, capture=None, valid=None, positions=None,
+                 full_attention=False, scored_training_temperature=None):
         q, k, v = self._qkv(x)
         precomputed = None
-        if self.retention is not None:
-            if capture is not None:
-                raise ValueError("attention capture is not implemented for scored eviction")
-            gates, _, _ = self.retention.sequence(self.n1(x), v, positions, valid)
-            precomputed = gated_attention(q, k, v, gates, self.head_dim ** -0.5, mask)
-        if capture is not None:
+        if self.retention is not None and not full_attention:
+            gates, _, _ = self.retention.sequence(
+                self.n1(x), v, positions, valid, scored_training_temperature)
+            precomputed = gated_attention(q, k, v, gates, self.head_dim ** -0.5, mask, capture)
+        elif capture is not None:
             # Inspection path: explicit softmax attention so the probability
             # map for every head can be captured. Grouped-query keys/values
             # are expanded to the full head count first.
@@ -228,7 +228,8 @@ class PrefixLM(nn.Module):
 
     def hidden_from_embeddings(self, embeddings, valid, prefix_lengths,
                                transport_spans=None, sliding_window=None,
-                               capture=None):
+                               capture=None, full_attention=False,
+                               scored_training_temperature=None):
         """Run the transformer on caller-supplied input embeddings.
 
         Pass a list as ``capture`` to collect per-layer attention
@@ -245,7 +246,9 @@ class PrefixLM(nn.Module):
         h = embeddings
         for block in self.blocks:
             h = block(h, mask, capture=capture, valid=valid,
-                      positions=mx.broadcast_to(mx.arange(h.shape[1]), valid.shape))
+                      positions=mx.broadcast_to(mx.arange(h.shape[1]), valid.shape),
+                      full_attention=full_attention,
+                      scored_training_temperature=scored_training_temperature)
         return self.norm(h)
 
     def hidden(self, tokens, valid, prefix_lengths, transport_spans=None,
@@ -266,20 +269,25 @@ class PrefixLM(nn.Module):
 
     def from_embeddings(self, embeddings, valid, prefix_lengths,
                         output_positions=None, transport_spans=None,
-                        sliding_window=None):
+                        sliding_window=None, full_attention=False,
+                        scored_training_temperature=None):
         """Compute target logits from externally constructed embeddings."""
         h = self.hidden_from_embeddings(embeddings, valid, prefix_lengths,
-                                        transport_spans, sliding_window)
+                                        transport_spans, sliding_window,
+                                        full_attention=full_attention,
+                                        scored_training_temperature=scored_training_temperature)
         if output_positions is not None:
             batch = mx.arange(h.shape[0])[:, None]
             h = h[batch, output_positions]
         return self._output(h)
 
     def __call__(self, tokens, valid, prefix_lengths, output_positions=None,
-                 transport_spans=None, sliding_window=None):
+                 transport_spans=None, sliding_window=None,
+                 full_attention=False, scored_training_temperature=None):
         return self.from_embeddings(
             self.embed(tokens), valid, prefix_lengths, output_positions,
-            transport_spans, sliding_window)
+            transport_spans, sliding_window, full_attention,
+            scored_training_temperature)
 
     def prefill(self, tokens, valid, prefix_lengths, sliding_window=None,
                 transport_spans=None, positions=None):
@@ -339,9 +347,10 @@ class PrefixLM(nn.Module):
                 stored_scores = mx.concatenate(
                     [cache.retention_scores[index],
                      mx.zeros(tokens.shape, dtype=mx.float32)], axis=1)
-                newly_old = eligible & (positions == position - block.retention.window)
-                assigned = block.retention.assign(block.n1(h), v, newly_old)
-                stored_scores = mx.where(newly_old, assigned, stored_scores)
+                newly_scored = eligible & (
+                    positions == position - block.retention.scoring_delay)
+                assigned = block.retention.assign(block.n1(h), v, newly_scored)
+                stored_scores = mx.where(newly_scored, assigned, stored_scores)
                 if forced_alive is None:
                     live, gate = block.retention.select(
                         stored_scores, eligible, positions, position[:, 0])

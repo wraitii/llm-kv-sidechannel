@@ -54,6 +54,11 @@ New configs in `configs/controlled/` initialize from that checkpoint and write t
 new `runs/controlled-*` directories. They share training data, optimization,
 seed, 2,000 finetuning steps, and endpoint-only FEN supervision:
 
+Set `full_attention_share` to mix ordinary full-causal-attention training into a
+constrained arm. The choice is made once per microbatch; selected microbatches
+bypass transport masks, sliding windows, and scored eviction. For example,
+`"full_attention_share": 0.05` gives a 5% full-attention escape mixture.
+
 | Config | Training constraint | Native training-time validation |
 | --- | --- | --- |
 | `full.json` | Full attention | Full attention |
@@ -64,6 +69,8 @@ seed, 2,000 finetuning steps, and endpoint-only FEN supervision:
 | `memento-swa32.json` | Ordinary survivors + SWA-32 | Both constraints |
 | `memento-carriers.json` | Inserted carriers, recursive masks | Same mask family + carriers |
 | `scored.json` | 24 recent + 8 older entries per layer | Same scored budget |
+| `scored-soft-topk.json` | Soft-TopK with eviction-boundary scoring (delay 24) | Same hard scored budget |
+| `scored-soft-topk-delay0.json` | Soft-TopK with immediate entry scoring | Same hard scored budget |
 
 SWA-32, streaming log 16+16, and scored 24+8 each limit visible entries to 32
 throughout source and target processing.
@@ -91,6 +98,8 @@ uv sync --extra dev
 uv run --locked llmpr-train --config configs/controlled/swa32.json
 uv run --locked llmpr-train --config configs/controlled/memento.json
 uv run --locked llmpr-train --config configs/controlled/scored.json
+uv run --locked llmpr-train --config configs/controlled/scored-soft-topk.json
+uv run --locked llmpr-train --config configs/controlled/scored-soft-topk-delay0.json
 ```
 
 Run whichever arms are relevant. These commands are not required in a particular
@@ -171,18 +180,30 @@ on a parseable six-field FEN; inspect parseability and exact-match alongside it.
 
 ## Scorer training details
 
-Selection is hard top-M during both training and inference. A sigmoid
-straight-through gate supplies an experimental, biased gradient approximation to
-train the scorer from future target loss. The attention forward pass uses the
-hard selected support, not a larger soft cache. Retained KVs remain differentiable
-through ordinary attention paths during training, so the model can learn to place
-useful information into future survivors.
+`scored.json` uses hard top-M during both training and inference. A sigmoid
+straight-through gate supplies an experimental, biased gradient approximation
+to train the scorer from future target loss. Its attention forward pass uses the
+hard selected support, not a larger soft cache.
 
-Each KV entry is scored once, when it crosses out of the recent window. That
-priority is stored with the cache entry and reused for later selections; old
-entries are not rescored at every query. Because priorities are immutable,
-training computes the top-M support for all sequence positions in one batched
-operation; cached inference updates the support once per generated token.
+`scored-soft-topk.json` changes only the training gradient. Its differentiable
+Laplace-CDF surrogate shares exactly M units of mass across eligible older
+entries, so candidates compete under the actual memory budget. A
+straight-through correction makes the forward pass exactly hard top-M during
+training as well as inference. The surrogate temperature decays exponentially
+from 1.0 to 0.001 over training. No Gumbel noise, budget curriculum, per-head
+budgeting, or distillation is included, keeping this an isolated test of the
+selection gradient. Retained KVs remain differentiable through ordinary
+attention paths under either method, so the model can learn to place useful
+information into future survivors.
+
+Each KV entry is scored once. `scoring_delay` controls how many subsequent
+tokens are visible to its scoring query: zero scores from the entry's own hidden
+state, while the default `recent_window` value scores when it crosses into
+memory, preserving the original behavior. Intermediate delays such as 4 or 8
+are supported; values must lie between zero and `recent_window`. The resulting
+priority is stored with the cache entry and reused rather than rescored at every
+query. Training computes the top-M support for all sequence positions in one
+batched operation, and cached inference assigns newly due scores once per token.
 
 The implementation uses per-layer policies shared across attention heads and a
 partial top-k selection rather than sorting the whole cache. Cache
@@ -190,8 +211,8 @@ storage remains dense and evicted entries are masked. This intentionally favors
 clear experimental semantics over memory savings. There is no claim that the
 scorer has learned useful transport until the trained checkpoints are evaluated.
 Scored training is a separate arm; combining it with static transport or SWA
-training constraints is currently rejected. Attention-map capture for scored
-models is not implemented.
+training constraints is currently rejected. The attention inspectors capture the
+actual hard-support probabilities for scored models as well.
 
 ## Data and cache integrity
 

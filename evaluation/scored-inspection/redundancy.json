@@ -1,0 +1,6961 @@
+[
+  {
+    "file_index": 26148,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      26,
+      32
+    ],
+    "moves": [
+      "c1a3",
+      "a3c1"
+    ],
+    "completion_position": 42,
+    "separator_position": 78,
+    "tokens": [
+      {
+        "position": 33,
+        "label": "c1",
+        "assigned_at": 57,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.227767944335938,
+          22.063156127929688,
+          11.868612289428711,
+          16.680452346801758,
+          16.591899871826172,
+          11.857075691223145
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 34,
+        "label": "a3\u00b7",
+        "assigned_at": 58,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.882556915283203,
+          34.19466781616211,
+          18.034700393676758,
+          21.597291946411133,
+          16.95417022705078,
+          16.086763381958008
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          true,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          true,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 41,
+        "label": "a3",
+        "assigned_at": 65,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.445195198059082,
+          20.53049087524414,
+          13.427367210388184,
+          12.44544792175293,
+          14.617539405822754,
+          17.573942184448242
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 42,
+        "label": "c1\u00b7",
+        "assigned_at": 66,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.02288818359375,
+          23.53458595275879,
+          10.678153038024902,
+          18.80026626586914,
+          20.847476959228516,
+          18.55792808532715
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 26148,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      37,
+      41
+    ],
+    "moves": [
+      "c5a6",
+      "a6c5"
+    ],
+    "completion_position": 56,
+    "separator_position": 78,
+    "tokens": [
+      {
+        "position": 48,
+        "label": "c5",
+        "assigned_at": 72,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.891389846801758,
+          14.73861026763916,
+          18.22539520263672,
+          19.512474060058594,
+          17.516460418701172,
+          21.695533752441406
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 49,
+        "label": "a6\u00b7",
+        "assigned_at": 73,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.010395050048828,
+          22.651193618774414,
+          24.348787307739258,
+          20.50519371032715,
+          14.779081344604492,
+          26.566543579101562
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          true,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          true,
+          true,
+          false,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          true,
+          false,
+          true
+        ]
+      },
+      {
+        "position": 55,
+        "label": "a6",
+        "assigned_at": 79,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.591450691223145,
+          32.54170227050781,
+          23.970108032226562,
+          14.449994087219238,
+          14.992783546447754,
+          20.634891510009766
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          true,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          true,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 56,
+        "label": "c5\u00b7",
+        "assigned_at": 80,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          6.685049533843994,
+          27.666358947753906,
+          14.032227516174316,
+          13.687300682067871,
+          21.83984375,
+          37.31178283691406
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          true
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 65931,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      26,
+      28
+    ],
+    "moves": [
+      "d4e5",
+      "e5d4"
+    ],
+    "completion_position": 33,
+    "separator_position": 44,
+    "tokens": [
+      {
+        "position": 30,
+        "label": "d4e5\u00b7",
+        "assigned_at": 54,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.399724006652832,
+          15.942283630371094,
+          11.7649507522583,
+          17.59712028503418,
+          16.721223831176758,
+          25.75240707397461
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          true,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          true
+        ]
+      },
+      {
+        "position": 33,
+        "label": "e5d4\u00b7",
+        "assigned_at": 57,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          9.165963172912598,
+          20.26688575744629,
+          11.059891700744629,
+          12.460204124450684,
+          17.14282989501953,
+          27.099365234375
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 76460,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      32,
+      44
+    ],
+    "moves": [
+      "c3e2",
+      "e2c3"
+    ],
+    "completion_position": 67,
+    "separator_position": 101,
+    "tokens": [
+      {
+        "position": 44,
+        "label": "c3",
+        "assigned_at": 68,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.454360008239746,
+          24.12861442565918,
+          20.611736297607422,
+          13.020870208740234,
+          16.032861709594727,
+          16.896007537841797
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 45,
+        "label": "e2\u00b7",
+        "assigned_at": 69,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          10.62846851348877,
+          21.7285213470459,
+          22.01825523376465,
+          18.314355850219727,
+          13.14207649230957,
+          18.243560791015625
+        ],
+        "kept_when_scored": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 66,
+        "label": "e2",
+        "assigned_at": 90,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.424266815185547,
+          18.64821434020996,
+          21.84865379333496,
+          9.901751518249512,
+          16.960277557373047,
+          16.973604202270508
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 67,
+        "label": "c3\u00b7",
+        "assigned_at": 91,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.693916320800781,
+          15.30235481262207,
+          19.730960845947266,
+          15.711251258850098,
+          23.33680534362793,
+          15.689992904663086
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 14090,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      27,
+      35
+    ],
+    "moves": [
+      "c8b7",
+      "b7c8"
+    ],
+    "completion_position": 47,
+    "separator_position": 61,
+    "tokens": [
+      {
+        "position": 32,
+        "label": "c8b7\u00b7",
+        "assigned_at": 56,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.396183013916016,
+          27.37997817993164,
+          12.052790641784668,
+          20.50506591796875,
+          15.83236312866211,
+          17.29045295715332
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          false,
+          true,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          false,
+          true,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 46,
+        "label": "b7",
+        "assigned_at": 70,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.483450889587402,
+          20.463703155517578,
+          12.966629028320312,
+          13.063075065612793,
+          12.507290840148926,
+          14.065139770507812
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 47,
+        "label": "c8\u00b7",
+        "assigned_at": 71,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          10.388683319091797,
+          29.648359298706055,
+          11.928787231445312,
+          9.226161003112793,
+          11.547343254089355,
+          17.116931915283203
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 52188,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      60,
+      62
+    ],
+    "moves": [
+      "e2f3",
+      "f3e2"
+    ],
+    "completion_position": 92,
+    "separator_position": 102,
+    "tokens": [
+      {
+        "position": 88,
+        "label": "e2f3\u00b7",
+        "assigned_at": 112,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.160387992858887,
+          25.342546463012695,
+          14.315566062927246,
+          9.25469970703125,
+          14.119190216064453,
+          13.0511474609375
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 91,
+        "label": "f3",
+        "assigned_at": 115,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.135837078094482,
+          27.53466033935547,
+          23.20621681213379,
+          14.10930061340332,
+          18.535133361816406,
+          15.408377647399902
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 92,
+        "label": "e2\u00b7",
+        "assigned_at": 116,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.641275405883789,
+          26.499313354492188,
+          16.22263526916504,
+          12.831323623657227,
+          16.539325714111328,
+          13.943282127380371
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 52188,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      61,
+      63
+    ],
+    "moves": [
+      "e5d5",
+      "d5e5"
+    ],
+    "completion_position": 94,
+    "separator_position": 102,
+    "tokens": [
+      {
+        "position": 89,
+        "label": "e5",
+        "assigned_at": 113,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          6.706259250640869,
+          25.410476684570312,
+          19.03407096862793,
+          15.1118803024292,
+          15.66629695892334,
+          16.536895751953125
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 90,
+        "label": "d5\u00b7",
+        "assigned_at": 114,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          4.527706623077393,
+          24.083892822265625,
+          17.240066528320312,
+          15.179122924804688,
+          13.717625617980957,
+          26.56131362915039
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      },
+      {
+        "position": 93,
+        "label": "d5",
+        "assigned_at": 117,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          6.618539810180664,
+          18.692832946777344,
+          18.70105743408203,
+          11.83724594116211,
+          15.908232688903809,
+          19.580636978149414
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 94,
+        "label": "e5\u00b7",
+        "assigned_at": 118,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          5.252634048461914,
+          19.698383331298828,
+          19.253437042236328,
+          16.629459381103516,
+          11.668790817260742,
+          24.642648696899414
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 52188,
+    "kind": "board_cycle",
+    "move_indices": [
+      60,
+      61,
+      62,
+      63
+    ],
+    "moves": [
+      "e2f3",
+      "e5d5",
+      "f3e2",
+      "d5e5"
+    ],
+    "completion_position": 94,
+    "separator_position": 102,
+    "tokens": [
+      {
+        "position": 88,
+        "label": "e2f3\u00b7",
+        "assigned_at": 112,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.160387992858887,
+          25.342546463012695,
+          14.315566062927246,
+          9.25469970703125,
+          14.119190216064453,
+          13.0511474609375
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 89,
+        "label": "e5",
+        "assigned_at": 113,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          6.706259250640869,
+          25.410476684570312,
+          19.03407096862793,
+          15.1118803024292,
+          15.66629695892334,
+          16.536895751953125
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 90,
+        "label": "d5\u00b7",
+        "assigned_at": 114,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          4.527706623077393,
+          24.083892822265625,
+          17.240066528320312,
+          15.179122924804688,
+          13.717625617980957,
+          26.56131362915039
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      },
+      {
+        "position": 91,
+        "label": "f3",
+        "assigned_at": 115,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.135837078094482,
+          27.53466033935547,
+          23.20621681213379,
+          14.10930061340332,
+          18.535133361816406,
+          15.408377647399902
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 92,
+        "label": "e2\u00b7",
+        "assigned_at": 116,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.641275405883789,
+          26.499313354492188,
+          16.22263526916504,
+          12.831323623657227,
+          16.539325714111328,
+          13.943282127380371
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 93,
+        "label": "d5",
+        "assigned_at": 117,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          6.618539810180664,
+          18.692832946777344,
+          18.70105743408203,
+          11.83724594116211,
+          15.908232688903809,
+          19.580636978149414
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 94,
+        "label": "e5\u00b7",
+        "assigned_at": 118,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          5.252634048461914,
+          19.698383331298828,
+          19.253437042236328,
+          16.629459381103516,
+          11.668790817260742,
+          24.642648696899414
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 52188,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      62,
+      64
+    ],
+    "moves": [
+      "f3e2",
+      "e2f3"
+    ],
+    "completion_position": 95,
+    "separator_position": 102,
+    "tokens": [
+      {
+        "position": 91,
+        "label": "f3",
+        "assigned_at": 115,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.135837078094482,
+          27.53466033935547,
+          23.20621681213379,
+          14.10930061340332,
+          18.535133361816406,
+          15.408377647399902
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 92,
+        "label": "e2\u00b7",
+        "assigned_at": 116,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.641275405883789,
+          26.499313354492188,
+          16.22263526916504,
+          12.831323623657227,
+          16.539325714111328,
+          13.943282127380371
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 95,
+        "label": "e2f3\u00b7",
+        "assigned_at": 119,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          6.533322334289551,
+          31.74069595336914,
+          26.782062530517578,
+          13.118255615234375,
+          19.325218200683594,
+          16.429044723510742
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 52188,
+    "kind": "board_cycle",
+    "move_indices": [
+      61,
+      62,
+      63,
+      64
+    ],
+    "moves": [
+      "e5d5",
+      "f3e2",
+      "d5e5",
+      "e2f3"
+    ],
+    "completion_position": 95,
+    "separator_position": 102,
+    "tokens": [
+      {
+        "position": 89,
+        "label": "e5",
+        "assigned_at": 113,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          6.706259250640869,
+          25.410476684570312,
+          19.03407096862793,
+          15.1118803024292,
+          15.66629695892334,
+          16.536895751953125
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 90,
+        "label": "d5\u00b7",
+        "assigned_at": 114,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          4.527706623077393,
+          24.083892822265625,
+          17.240066528320312,
+          15.179122924804688,
+          13.717625617980957,
+          26.56131362915039
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      },
+      {
+        "position": 91,
+        "label": "f3",
+        "assigned_at": 115,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.135837078094482,
+          27.53466033935547,
+          23.20621681213379,
+          14.10930061340332,
+          18.535133361816406,
+          15.408377647399902
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 92,
+        "label": "e2\u00b7",
+        "assigned_at": 116,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.641275405883789,
+          26.499313354492188,
+          16.22263526916504,
+          12.831323623657227,
+          16.539325714111328,
+          13.943282127380371
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 93,
+        "label": "d5",
+        "assigned_at": 117,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          6.618539810180664,
+          18.692832946777344,
+          18.70105743408203,
+          11.83724594116211,
+          15.908232688903809,
+          19.580636978149414
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 94,
+        "label": "e5\u00b7",
+        "assigned_at": 118,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          5.252634048461914,
+          19.698383331298828,
+          19.253437042236328,
+          16.629459381103516,
+          11.668790817260742,
+          24.642648696899414
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 95,
+        "label": "e2f3\u00b7",
+        "assigned_at": 119,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          6.533322334289551,
+          31.74069595336914,
+          26.782062530517578,
+          13.118255615234375,
+          19.325218200683594,
+          16.429044723510742
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 52188,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      56,
+      68
+    ],
+    "moves": [
+      "e3c1",
+      "c1e3"
+    ],
+    "completion_position": 101,
+    "separator_position": 102,
+    "tokens": [
+      {
+        "position": 82,
+        "label": "e3",
+        "assigned_at": 106,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.0469560623168945,
+          14.050875663757324,
+          9.598581314086914,
+          7.195113182067871,
+          10.057609558105469,
+          19.872095108032227
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 83,
+        "label": "c1\u00b7",
+        "assigned_at": 107,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          10.261577606201172,
+          15.75606918334961,
+          10.123207092285156,
+          9.818520545959473,
+          11.460015296936035,
+          16.165002822875977
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 100,
+        "label": "c1",
+        "assigned_at": 124,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          10.200032234191895,
+          22.491703033447266,
+          20.874378204345703,
+          12.500846862792969,
+          11.84969425201416,
+          17.786001205444336
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 101,
+        "label": "e3",
+        "assigned_at": 125,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          6.192848205566406,
+          23.416000366210938,
+          22.282711029052734,
+          11.955242156982422,
+          11.697936058044434,
+          16.842439651489258
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 38119,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      28,
+      42
+    ],
+    "moves": [
+      "c4d2",
+      "d2c4"
+    ],
+    "completion_position": 60,
+    "separator_position": 149,
+    "tokens": [
+      {
+        "position": 34,
+        "label": "c4",
+        "assigned_at": 58,
+        "return_known_when_scored": false,
+        "scored_during_source": true,
+        "score": [
+          8.67113971710205,
+          15.288352966308594,
+          18.165328979492188,
+          16.486804962158203,
+          16.67017364501953,
+          17.361896514892578
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 35,
+        "label": "d2\u00b7",
+        "assigned_at": 59,
+        "return_known_when_scored": false,
+        "scored_during_source": true,
+        "score": [
+          10.481940269470215,
+          14.97762393951416,
+          15.272822380065918,
+          20.981945037841797,
+          20.408918380737305,
+          24.448667526245117
+        ],
+        "kept_when_scored": [
+          true,
+          false,
+          false,
+          true,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 59,
+        "label": "d2",
+        "assigned_at": 83,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          12.755223274230957,
+          14.806951522827148,
+          20.643444061279297,
+          15.594209671020508,
+          23.82793426513672,
+          16.128360748291016
+        ],
+        "kept_when_scored": [
+          true,
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_last_prediction": [
+          true,
+          false,
+          false,
+          false,
+          true,
+          false
+        ]
+      },
+      {
+        "position": 60,
+        "label": "c4\u00b7",
+        "assigned_at": 84,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          10.47446060180664,
+          13.090116500854492,
+          18.78453826904297,
+          19.452762603759766,
+          18.28139877319336,
+          20.207744598388672
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 38119,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      56,
+      64
+    ],
+    "moves": [
+      "b1a2",
+      "a2b1"
+    ],
+    "completion_position": 97,
+    "separator_position": 149,
+    "tokens": [
+      {
+        "position": 83,
+        "label": "b1",
+        "assigned_at": 107,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          10.885165214538574,
+          13.355912208557129,
+          19.46870231628418,
+          13.567503929138184,
+          18.12484359741211,
+          19.608417510986328
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 84,
+        "label": "a2\u00b7",
+        "assigned_at": 108,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          11.686466217041016,
+          17.7819881439209,
+          21.70276641845703,
+          18.75531768798828,
+          21.232818603515625,
+          21.17902374267578
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 96,
+        "label": "a2",
+        "assigned_at": 120,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          10.578686714172363,
+          12.7916841506958,
+          17.825199127197266,
+          15.134318351745605,
+          22.279897689819336,
+          21.215391159057617
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 97,
+        "label": "b1\u00b7",
+        "assigned_at": 121,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          15.655542373657227,
+          38.708900451660156,
+          23.750024795532227,
+          19.177207946777344,
+          22.722991943359375,
+          26.25745964050293
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          true,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          false,
+          false,
+          true
+        ],
+        "kept_at_last_prediction": [
+          true,
+          true,
+          true,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 21935,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      68,
+      76
+    ],
+    "moves": [
+      "f4g3",
+      "g3f4"
+    ],
+    "completion_position": 124,
+    "separator_position": 212,
+    "tokens": [
+      {
+        "position": 107,
+        "label": "f4",
+        "assigned_at": 131,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.704809188842773,
+          22.241310119628906,
+          20.130859375,
+          17.342988967895508,
+          17.626007080078125,
+          16.80126190185547
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 108,
+        "label": "g3\u00b7",
+        "assigned_at": 132,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.043465614318848,
+          39.10525894165039,
+          15.966337203979492,
+          14.538812637329102,
+          17.797649383544922,
+          15.200925827026367
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 123,
+        "label": "g3",
+        "assigned_at": 147,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.048799514770508,
+          30.149864196777344,
+          23.032108306884766,
+          19.086938858032227,
+          17.496137619018555,
+          14.923453330993652
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 124,
+        "label": "f4\u00b7",
+        "assigned_at": 148,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.548946380615234,
+          19.13309669494629,
+          18.277799606323242,
+          14.659528732299805,
+          14.931037902832031,
+          16.451866149902344
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 21935,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      82,
+      84
+    ],
+    "moves": [
+      "f2d2",
+      "d2f2"
+    ],
+    "completion_position": 140,
+    "separator_position": 212,
+    "tokens": [
+      {
+        "position": 135,
+        "label": "f2",
+        "assigned_at": 159,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.711387634277344,
+          21.157855987548828,
+          22.828805923461914,
+          14.537321090698242,
+          17.729381561279297,
+          19.03264808654785
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 136,
+        "label": "d2\u00b7",
+        "assigned_at": 160,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          11.374956130981445,
+          27.828994750976562,
+          13.863295555114746,
+          16.85727310180664,
+          17.6087589263916,
+          20.31117057800293
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 139,
+        "label": "d2",
+        "assigned_at": 163,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          12.302508354187012,
+          19.627883911132812,
+          20.606508255004883,
+          11.506253242492676,
+          16.354204177856445,
+          15.897465705871582
+        ],
+        "kept_when_scored": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 140,
+        "label": "f2\u00b7",
+        "assigned_at": 164,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.950936317443848,
+          26.69339370727539,
+          13.94906234741211,
+          16.951181411743164,
+          24.69525718688965,
+          25.29627227783203
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 21935,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      80,
+      86
+    ],
+    "moves": [
+      "g4g3",
+      "g3g4"
+    ],
+    "completion_position": 143,
+    "separator_position": 212,
+    "tokens": [
+      {
+        "position": 131,
+        "label": "g4",
+        "assigned_at": 155,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.79711389541626,
+          15.59235668182373,
+          14.978357315063477,
+          9.375580787658691,
+          18.44630241394043,
+          13.248674392700195
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 132,
+        "label": "g3\u00b7",
+        "assigned_at": 156,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.1602935791015625,
+          42.35995864868164,
+          15.500526428222656,
+          12.90665054321289,
+          28.542631149291992,
+          19.622703552246094
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          true,
+          false
+        ]
+      },
+      {
+        "position": 142,
+        "label": "g3",
+        "assigned_at": 166,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.469724655151367,
+          14.469182014465332,
+          25.181604385375977,
+          14.712785720825195,
+          19.154813766479492,
+          16.446949005126953
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 143,
+        "label": "g4\u00b7",
+        "assigned_at": 167,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.267950534820557,
+          21.169757843017578,
+          16.856889724731445,
+          12.973051071166992,
+          19.834814071655273,
+          17.522958755493164
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 21935,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      77,
+      87
+    ],
+    "moves": [
+      "c4c3",
+      "c3c4"
+    ],
+    "completion_position": 145,
+    "separator_position": 212,
+    "tokens": [
+      {
+        "position": 125,
+        "label": "c4",
+        "assigned_at": 149,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.945135593414307,
+          23.711936950683594,
+          15.113709449768066,
+          15.680526733398438,
+          13.39317798614502,
+          12.495630264282227
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 126,
+        "label": "c3\u00b7",
+        "assigned_at": 150,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.541303634643555,
+          17.348230361938477,
+          13.776474952697754,
+          17.772428512573242,
+          15.985553741455078,
+          19.210838317871094
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 144,
+        "label": "c3",
+        "assigned_at": 168,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.27701473236084,
+          15.911479949951172,
+          15.482199668884277,
+          13.997468948364258,
+          18.73119354248047,
+          15.566017150878906
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 145,
+        "label": "c4\u00b7",
+        "assigned_at": 169,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.387813568115234,
+          25.87348747253418,
+          17.083541870117188,
+          14.66835880279541,
+          16.978744506835938,
+          13.543092727661133
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 21935,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      86,
+      88
+    ],
+    "moves": [
+      "g3g4",
+      "g4g3"
+    ],
+    "completion_position": 147,
+    "separator_position": 212,
+    "tokens": [
+      {
+        "position": 142,
+        "label": "g3",
+        "assigned_at": 166,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.469724655151367,
+          14.469182014465332,
+          25.181604385375977,
+          14.712785720825195,
+          19.154813766479492,
+          16.446949005126953
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 143,
+        "label": "g4\u00b7",
+        "assigned_at": 167,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.267950534820557,
+          21.169757843017578,
+          16.856889724731445,
+          12.973051071166992,
+          19.834814071655273,
+          17.522958755493164
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 146,
+        "label": "g4",
+        "assigned_at": 170,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.365521430969238,
+          17.422258377075195,
+          21.680335998535156,
+          17.30933380126953,
+          15.615878105163574,
+          15.949478149414062
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 147,
+        "label": "g3\u00b7",
+        "assigned_at": 171,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.6846113204956055,
+          28.28879165649414,
+          19.993640899658203,
+          12.801931381225586,
+          19.040592193603516,
+          16.651784896850586
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 21935,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      92,
+      94
+    ],
+    "moves": [
+      "g2h2",
+      "h2g2"
+    ],
+    "completion_position": 159,
+    "separator_position": 212,
+    "tokens": [
+      {
+        "position": 154,
+        "label": "g2",
+        "assigned_at": 178,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          10.78624439239502,
+          13.36929988861084,
+          14.99133014678955,
+          13.213421821594238,
+          12.632765769958496,
+          15.983531951904297
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 155,
+        "label": "h2\u00b7",
+        "assigned_at": 179,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.25882339477539,
+          18.237268447875977,
+          12.11467456817627,
+          15.323884010314941,
+          16.560035705566406,
+          20.635435104370117
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 158,
+        "label": "h2",
+        "assigned_at": 182,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.789410591125488,
+          20.666141510009766,
+          16.601709365844727,
+          16.927518844604492,
+          11.240610122680664,
+          14.666475296020508
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 159,
+        "label": "g2\u00b7",
+        "assigned_at": 183,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          10.467556953430176,
+          23.210433959960938,
+          17.133821487426758,
+          20.066465377807617,
+          17.170303344726562,
+          20.208934783935547
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 21935,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      104,
+      106
+    ],
+    "moves": [
+      "g7f7",
+      "f7g7"
+    ],
+    "completion_position": 182,
+    "separator_position": 212,
+    "tokens": [
+      {
+        "position": 177,
+        "label": "g7",
+        "assigned_at": 201,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.788837432861328,
+          32.435604095458984,
+          18.725332260131836,
+          15.800149917602539,
+          17.884939193725586,
+          25.5750732421875
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 178,
+        "label": "f7\u00b7",
+        "assigned_at": 202,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.3247528076171875,
+          21.271703720092773,
+          19.02485466003418,
+          9.96207046508789,
+          16.408679962158203,
+          33.32788848876953
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      },
+      {
+        "position": 181,
+        "label": "f7",
+        "assigned_at": 205,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.822528839111328,
+          17.71164894104004,
+          15.103856086730957,
+          9.143509864807129,
+          13.769952774047852,
+          19.072826385498047
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 182,
+        "label": "g7\u00b7",
+        "assigned_at": 206,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          5.031972408294678,
+          19.192398071289062,
+          20.089967727661133,
+          11.793761253356934,
+          14.627216339111328,
+          23.573657989501953
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 21935,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      108,
+      110
+    ],
+    "moves": [
+      "e1d1",
+      "d1e1"
+    ],
+    "completion_position": 190,
+    "separator_position": 212,
+    "tokens": [
+      {
+        "position": 185,
+        "label": "e1",
+        "assigned_at": 209,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          10.082210540771484,
+          36.411441802978516,
+          16.71205711364746,
+          9.137195587158203,
+          17.96632957458496,
+          17.910282135009766
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 186,
+        "label": "d1\u00b7",
+        "assigned_at": 210,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.1280364990234375,
+          22.27122688293457,
+          7.8482346534729,
+          13.518643379211426,
+          16.825733184814453,
+          15.524797439575195
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 189,
+        "label": "d1",
+        "assigned_at": 213,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.114913463592529,
+          28.905183792114258,
+          8.897880554199219,
+          12.48742961883545,
+          14.087247848510742,
+          14.976951599121094
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 190,
+        "label": "e1\u00b7",
+        "assigned_at": 214,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.047208786010742,
+          21.734615325927734,
+          6.1810503005981445,
+          12.58732795715332,
+          13.885676383972168,
+          12.926215171813965
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 21935,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      118,
+      120
+    ],
+    "moves": [
+      "d1c1",
+      "c1d1"
+    ],
+    "completion_position": 209,
+    "separator_position": 212,
+    "tokens": [
+      {
+        "position": 204,
+        "label": "d1",
+        "assigned_at": 228,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.148685455322266,
+          19.285552978515625,
+          18.924312591552734,
+          15.678190231323242,
+          14.583273887634277,
+          16.444068908691406
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 205,
+        "label": "c1\u00b7",
+        "assigned_at": 229,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          10.886587142944336,
+          14.857564926147461,
+          8.373982429504395,
+          11.239213943481445,
+          13.666122436523438,
+          15.414484024047852
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 208,
+        "label": "c1",
+        "assigned_at": 232,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          9.864360809326172,
+          21.638025283813477,
+          18.786643981933594,
+          13.325597763061523,
+          10.50485610961914,
+          16.50916862487793
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 209,
+        "label": "d1\u00b7",
+        "assigned_at": 233,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          4.336843967437744,
+          25.043792724609375,
+          12.334754943847656,
+          12.961220741271973,
+          12.084169387817383,
+          22.683618545532227
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 23342,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      4,
+      30
+    ],
+    "moves": [
+      "b1c3",
+      "c3b1"
+    ],
+    "completion_position": 37,
+    "separator_position": 109,
+    "tokens": [
+      {
+        "position": 5,
+        "label": "b1c3\u00b7",
+        "assigned_at": 29,
+        "return_known_when_scored": false,
+        "scored_during_source": true,
+        "score": [
+          9.195198059082031,
+          12.7613525390625,
+          20.465755462646484,
+          15.343618392944336,
+          16.052595138549805,
+          11.542682647705078
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 36,
+        "label": "c3",
+        "assigned_at": 60,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.249527931213379,
+          21.83676528930664,
+          15.016738891601562,
+          11.618968963623047,
+          14.190596580505371,
+          11.039960861206055
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 37,
+        "label": "b1\u00b7",
+        "assigned_at": 61,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          12.139162063598633,
+          32.71751022338867,
+          10.123066902160645,
+          13.563825607299805,
+          15.744660377502441,
+          13.326025009155273
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 23342,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      30,
+      38
+    ],
+    "moves": [
+      "c3b1",
+      "b1c3"
+    ],
+    "completion_position": 49,
+    "separator_position": 109,
+    "tokens": [
+      {
+        "position": 36,
+        "label": "c3",
+        "assigned_at": 60,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.249527931213379,
+          21.83676528930664,
+          15.016738891601562,
+          11.618968963623047,
+          14.190596580505371,
+          11.039960861206055
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 37,
+        "label": "b1\u00b7",
+        "assigned_at": 61,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          12.139162063598633,
+          32.71751022338867,
+          10.123066902160645,
+          13.563825607299805,
+          15.744660377502441,
+          13.326025009155273
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 49,
+        "label": "b1c3\u00b7",
+        "assigned_at": 73,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.872222900390625,
+          31.382123947143555,
+          19.551029205322266,
+          15.206732749938965,
+          19.756702423095703,
+          9.353815078735352
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 23342,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      7,
+      55
+    ],
+    "moves": [
+      "f8g7",
+      "g7f8"
+    ],
+    "completion_position": 80,
+    "separator_position": 109,
+    "tokens": [
+      {
+        "position": 8,
+        "label": "f8g7\u00b7",
+        "assigned_at": 32,
+        "return_known_when_scored": false,
+        "scored_during_source": true,
+        "score": [
+          7.8774590492248535,
+          11.271663665771484,
+          16.95391082763672,
+          15.80601692199707,
+          14.267934799194336,
+          12.923946380615234
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          true,
+          true,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 79,
+        "label": "g7",
+        "assigned_at": 103,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.421225547790527,
+          18.692577362060547,
+          23.867820739746094,
+          17.002490997314453,
+          21.944820404052734,
+          32.910396575927734
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      },
+      {
+        "position": 80,
+        "label": "f8\u00b7",
+        "assigned_at": 104,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.528188705444336,
+          17.267671585083008,
+          14.164527893066406,
+          8.435832023620605,
+          15.77269458770752,
+          27.159317016601562
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 23342,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      66,
+      70
+    ],
+    "moves": [
+      "b7b6",
+      "b6b7"
+    ],
+    "completion_position": 108,
+    "separator_position": 109,
+    "tokens": [
+      {
+        "position": 100,
+        "label": "b7b6\u00b7",
+        "assigned_at": 124,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.159530639648438,
+          26.153501510620117,
+          20.100717544555664,
+          13.938069343566895,
+          19.338438034057617,
+          22.494384765625
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 107,
+        "label": "b6",
+        "assigned_at": 131,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.487016677856445,
+          27.970914840698242,
+          27.234643936157227,
+          9.084349632263184,
+          14.054512023925781,
+          22.031375885009766
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 108,
+        "label": "b7",
+        "assigned_at": 132,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.764496803283691,
+          20.224987030029297,
+          23.455095291137695,
+          9.4433012008667,
+          12.680500984191895,
+          19.293109893798828
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 75090,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      28,
+      30
+    ],
+    "moves": [
+      "h2g4",
+      "g4h2"
+    ],
+    "completion_position": 42,
+    "separator_position": 86,
+    "tokens": [
+      {
+        "position": 37,
+        "label": "h2",
+        "assigned_at": 61,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.674968719482422,
+          27.27703285217285,
+          15.841363906860352,
+          19.288185119628906,
+          13.196476936340332,
+          23.919191360473633
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 38,
+        "label": "g4\u00b7",
+        "assigned_at": 62,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          5.992964744567871,
+          22.011510848999023,
+          25.88097381591797,
+          25.179899215698242,
+          16.462997436523438,
+          19.063840866088867
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          true,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          true,
+          true,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 41,
+        "label": "g4",
+        "assigned_at": 65,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.435898780822754,
+          19.446212768554688,
+          21.424640655517578,
+          18.605915069580078,
+          15.481146812438965,
+          16.55343246459961
+        ],
+        "kept_when_scored": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 42,
+        "label": "h2\u00b7",
+        "assigned_at": 66,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.275883674621582,
+          26.52531623840332,
+          12.191566467285156,
+          15.424342155456543,
+          13.18644905090332,
+          19.146404266357422
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 75090,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      30,
+      46
+    ],
+    "moves": [
+      "g4h2",
+      "h2g4"
+    ],
+    "completion_position": 71,
+    "separator_position": 86,
+    "tokens": [
+      {
+        "position": 41,
+        "label": "g4",
+        "assigned_at": 65,
+        "return_known_when_scored": false,
+        "scored_during_source": true,
+        "score": [
+          9.435898780822754,
+          19.446212768554688,
+          21.424640655517578,
+          18.605915069580078,
+          15.481146812438965,
+          16.55343246459961
+        ],
+        "kept_when_scored": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 42,
+        "label": "h2\u00b7",
+        "assigned_at": 66,
+        "return_known_when_scored": false,
+        "scored_during_source": true,
+        "score": [
+          9.275883674621582,
+          26.52531623840332,
+          12.191566467285156,
+          15.424342155456543,
+          13.18644905090332,
+          19.146404266357422
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 70,
+        "label": "h2",
+        "assigned_at": 94,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.120213508605957,
+          18.35076332092285,
+          17.77755355834961,
+          19.2049503326416,
+          14.10484504699707,
+          24.8836669921875
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 71,
+        "label": "g4\u00b7",
+        "assigned_at": 95,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          5.696496963500977,
+          19.91389274597168,
+          13.686836242675781,
+          19.273094177246094,
+          15.870098114013672,
+          17.296306610107422
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 75090,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      33,
+      49
+    ],
+    "moves": [
+      "c6a5",
+      "a5c6"
+    ],
+    "completion_position": 76,
+    "separator_position": 86,
+    "tokens": [
+      {
+        "position": 47,
+        "label": "c6",
+        "assigned_at": 71,
+        "return_known_when_scored": false,
+        "scored_during_source": true,
+        "score": [
+          8.928581237792969,
+          18.800424575805664,
+          15.057703971862793,
+          13.882827758789062,
+          10.85311222076416,
+          11.141236305236816
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 48,
+        "label": "a5\u00b7",
+        "assigned_at": 72,
+        "return_known_when_scored": false,
+        "scored_during_source": true,
+        "score": [
+          6.552121639251709,
+          25.17176055908203,
+          19.779903411865234,
+          18.18111801147461,
+          13.889494895935059,
+          20.61853790283203
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 75,
+        "label": "a5",
+        "assigned_at": 99,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.47904109954834,
+          13.148835182189941,
+          18.901012420654297,
+          14.61850357055664,
+          13.561152458190918,
+          14.523477554321289
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 76,
+        "label": "c6\u00b7",
+        "assigned_at": 100,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          5.2483296394348145,
+          13.48568344116211,
+          15.141127586364746,
+          13.774091720581055,
+          13.98903751373291,
+          23.258583068847656
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 75090,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      44,
+      54
+    ],
+    "moves": [
+      "g1g3",
+      "g3g1"
+    ],
+    "completion_position": 85,
+    "separator_position": 86,
+    "tokens": [
+      {
+        "position": 67,
+        "label": "g1",
+        "assigned_at": 91,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.580742359161377,
+          20.231609344482422,
+          12.775354385375977,
+          14.430880546569824,
+          15.569448471069336,
+          18.81351089477539
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 68,
+        "label": "g3\u00b7",
+        "assigned_at": 92,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.254395484924316,
+          30.988115310668945,
+          20.007139205932617,
+          20.540409088134766,
+          16.940017700195312,
+          18.339473724365234
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 84,
+        "label": "g3",
+        "assigned_at": 108,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.464791297912598,
+          16.017913818359375,
+          28.53146743774414,
+          14.12756633758545,
+          15.745561599731445,
+          23.143218994140625
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 85,
+        "label": "g1",
+        "assigned_at": 109,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.863485336303711,
+          13.154821395874023,
+          30.239797592163086,
+          14.220854759216309,
+          18.514142990112305,
+          18.352201461791992
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 48355,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      19,
+      25
+    ],
+    "moves": [
+      "e7g6",
+      "g6e7"
+    ],
+    "completion_position": 31,
+    "separator_position": 35,
+    "tokens": [
+      {
+        "position": 22,
+        "label": "e7",
+        "assigned_at": 46,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          8.48552131652832,
+          25.239765167236328,
+          14.070899963378906,
+          17.519123077392578,
+          15.339422225952148,
+          15.955978393554688
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          true,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 23,
+        "label": "g6\u00b7",
+        "assigned_at": 47,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          5.235118865966797,
+          17.867223739624023,
+          12.498311042785645,
+          13.596786499023438,
+          15.102439880371094,
+          12.331756591796875
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 30,
+        "label": "g6",
+        "assigned_at": 54,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.205344200134277,
+          17.20953369140625,
+          20.07110023498535,
+          15.542298316955566,
+          15.878826141357422,
+          18.796443939208984
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          true,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 31,
+        "label": "e7\u00b7",
+        "assigned_at": 55,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          7.463620662689209,
+          13.814666748046875,
+          21.64455795288086,
+          12.525553703308105,
+          6.869698524475098,
+          21.59496307373047
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 59765,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      19,
+      33
+    ],
+    "moves": [
+      "g4e6",
+      "e6g4"
+    ],
+    "completion_position": 40,
+    "separator_position": 115,
+    "tokens": [
+      {
+        "position": 20,
+        "label": "g4",
+        "assigned_at": 44,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.369090557098389,
+          19.853538513183594,
+          19.669803619384766,
+          20.088951110839844,
+          18.019908905029297,
+          17.801090240478516
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          true,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 21,
+        "label": "e6\u00b7",
+        "assigned_at": 45,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.178426265716553,
+          27.685802459716797,
+          22.059309005737305,
+          17.576297760009766,
+          19.630708694458008,
+          22.38834571838379
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 39,
+        "label": "e6",
+        "assigned_at": 63,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.165319919586182,
+          19.358543395996094,
+          14.713045120239258,
+          9.914022445678711,
+          18.308568954467773,
+          18.608579635620117
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 40,
+        "label": "g4\u00b7",
+        "assigned_at": 64,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.035079002380371,
+          29.983097076416016,
+          23.085588455200195,
+          21.079294204711914,
+          17.84954833984375,
+          21.82294273376465
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          true,
+          true,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 59765,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      47,
+      53
+    ],
+    "moves": [
+      "f7g6",
+      "g6f7"
+    ],
+    "completion_position": 77,
+    "separator_position": 115,
+    "tokens": [
+      {
+        "position": 66,
+        "label": "f7",
+        "assigned_at": 90,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          5.965742111206055,
+          23.266176223754883,
+          21.30811882019043,
+          17.823440551757812,
+          19.83504295349121,
+          22.404422760009766
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 67,
+        "label": "g6\u00b7",
+        "assigned_at": 91,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.643010139465332,
+          19.46479034423828,
+          22.013629913330078,
+          16.017120361328125,
+          22.074241638183594,
+          21.778118133544922
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ]
+      },
+      {
+        "position": 76,
+        "label": "g6",
+        "assigned_at": 100,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.098588943481445,
+          16.908578872680664,
+          21.83438491821289,
+          15.509241104125977,
+          18.72136116027832,
+          18.590253829956055
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 77,
+        "label": "f7\u00b7",
+        "assigned_at": 101,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          5.823418617248535,
+          14.839459419250488,
+          15.826995849609375,
+          7.7474517822265625,
+          14.267215728759766,
+          24.958314895629883
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 59765,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      53,
+      55
+    ],
+    "moves": [
+      "g6f7",
+      "f7g6"
+    ],
+    "completion_position": 81,
+    "separator_position": 115,
+    "tokens": [
+      {
+        "position": 76,
+        "label": "g6",
+        "assigned_at": 100,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.098588943481445,
+          16.908578872680664,
+          21.83438491821289,
+          15.509241104125977,
+          18.72136116027832,
+          18.590253829956055
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 77,
+        "label": "f7\u00b7",
+        "assigned_at": 101,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          5.823418617248535,
+          14.839459419250488,
+          15.826995849609375,
+          7.7474517822265625,
+          14.267215728759766,
+          24.958314895629883
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 80,
+        "label": "f7",
+        "assigned_at": 104,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.140785217285156,
+          16.903255462646484,
+          19.465991973876953,
+          13.455741882324219,
+          15.724099159240723,
+          12.938677787780762
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 81,
+        "label": "g6\u00b7",
+        "assigned_at": 105,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.09402084350586,
+          17.485565185546875,
+          25.50886344909668,
+          15.923227310180664,
+          22.2661075592041,
+          21.197834014892578
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          true,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          true,
+          false,
+          true,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          false,
+          true,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 16829,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      44,
+      48
+    ],
+    "moves": [
+      "h1g2",
+      "g2h1"
+    ],
+    "completion_position": 73,
+    "separator_position": 84,
+    "tokens": [
+      {
+        "position": 64,
+        "label": "h1",
+        "assigned_at": 88,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          9.268747329711914,
+          23.694379806518555,
+          13.340466499328613,
+          13.273567199707031,
+          21.395715713500977,
+          18.48979949951172
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 65,
+        "label": "g2\u00b7",
+        "assigned_at": 89,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          13.371493339538574,
+          23.760730743408203,
+          13.389297485351562,
+          11.274090766906738,
+          16.696191787719727,
+          16.56703758239746
+        ],
+        "kept_when_scored": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 72,
+        "label": "g2",
+        "assigned_at": 96,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          9.488421440124512,
+          15.983760833740234,
+          17.339651107788086,
+          11.549508094787598,
+          14.139482498168945,
+          14.4649658203125
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 73,
+        "label": "h1\u00b7",
+        "assigned_at": 97,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          10.260750770568848,
+          16.937545776367188,
+          14.342912673950195,
+          12.000298500061035,
+          18.684492111206055,
+          17.37853240966797
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 23289,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      13,
+      15
+    ],
+    "moves": [
+      "d8h4",
+      "h4d8"
+    ],
+    "completion_position": 20,
+    "separator_position": 56,
+    "tokens": [
+      {
+        "position": 15,
+        "label": "d8",
+        "assigned_at": 39,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.191346168518066,
+          13.622118949890137,
+          20.235395431518555,
+          27.805957794189453,
+          18.72820281982422,
+          20.761865615844727
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          true,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          true,
+          true,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 16,
+        "label": "h4\u00b7",
+        "assigned_at": 40,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.517362594604492,
+          22.14316749572754,
+          27.44711685180664,
+          20.8621883392334,
+          16.607587814331055,
+          17.132230758666992
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          true,
+          true,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          true,
+          true,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 19,
+        "label": "h4",
+        "assigned_at": 43,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.27578067779541,
+          19.34783935546875,
+          20.98174476623535,
+          20.502758026123047,
+          11.498614311218262,
+          20.801197052001953
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          true,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 20,
+        "label": "d8\u00b7",
+        "assigned_at": 44,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.388827800750732,
+          20.881065368652344,
+          19.655115127563477,
+          27.890907287597656,
+          13.254528999328613,
+          28.044994354248047
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          true,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          true
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 60901,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      21,
+      25
+    ],
+    "moves": [
+      "c8f5",
+      "f5c8"
+    ],
+    "completion_position": 31,
+    "separator_position": 148,
+    "tokens": [
+      {
+        "position": 25,
+        "label": "c8f5\u00b7",
+        "assigned_at": 49,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          10.379725456237793,
+          17.686174392700195,
+          18.63294219970703,
+          21.959415435791016,
+          15.207225799560547,
+          17.60833168029785
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          false,
+          true,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 30,
+        "label": "f5",
+        "assigned_at": 54,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.812680721282959,
+          22.524391174316406,
+          20.7481689453125,
+          17.96552085876465,
+          16.155431747436523,
+          13.885368347167969
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 31,
+        "label": "c8\u00b7",
+        "assigned_at": 55,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.8261079788208,
+          22.078601837158203,
+          11.783013343811035,
+          16.380762100219727,
+          10.912980079650879,
+          15.468353271484375
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 60901,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      33,
+      45
+    ],
+    "moves": [
+      "c8d7",
+      "d7c8"
+    ],
+    "completion_position": 61,
+    "separator_position": 148,
+    "tokens": [
+      {
+        "position": 41,
+        "label": "c8d7\u00b7",
+        "assigned_at": 65,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.768424987792969,
+          19.779375076293945,
+          15.605256080627441,
+          19.401220321655273,
+          19.706254959106445,
+          26.380294799804688
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          true,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      },
+      {
+        "position": 60,
+        "label": "d7",
+        "assigned_at": 84,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.1423234939575195,
+          24.762676239013672,
+          17.779064178466797,
+          16.21845054626465,
+          20.586645126342773,
+          20.473102569580078
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          true,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 61,
+        "label": "c8\u00b7",
+        "assigned_at": 85,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          10.772418975830078,
+          35.33891677856445,
+          16.249303817749023,
+          14.219893455505371,
+          19.14963722229004,
+          22.971214294433594
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 60901,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      46,
+      62
+    ],
+    "moves": [
+      "e2g3",
+      "g3e2"
+    ],
+    "completion_position": 93,
+    "separator_position": 148,
+    "tokens": [
+      {
+        "position": 62,
+        "label": "e2",
+        "assigned_at": 86,
+        "return_known_when_scored": false,
+        "scored_during_source": true,
+        "score": [
+          8.283502578735352,
+          19.196136474609375,
+          18.343229293823242,
+          12.019248008728027,
+          17.503381729125977,
+          18.723934173583984
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 63,
+        "label": "g3\u00b7",
+        "assigned_at": 87,
+        "return_known_when_scored": false,
+        "scored_during_source": true,
+        "score": [
+          6.340882301330566,
+          29.48442268371582,
+          19.070785522460938,
+          14.329843521118164,
+          19.427968978881836,
+          19.95376968383789
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 92,
+        "label": "g3",
+        "assigned_at": 116,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.537508010864258,
+          17.298999786376953,
+          24.273426055908203,
+          18.062280654907227,
+          17.205442428588867,
+          21.457666397094727
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 93,
+        "label": "e2\u00b7",
+        "assigned_at": 117,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.767210006713867,
+          17.640167236328125,
+          15.646932601928711,
+          16.271516799926758,
+          21.776826858520508,
+          25.62395477294922
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 60901,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      74,
+      76
+    ],
+    "moves": [
+      "h3g5",
+      "g5h3"
+    ],
+    "completion_position": 120,
+    "separator_position": 148,
+    "tokens": [
+      {
+        "position": 116,
+        "label": "h3",
+        "assigned_at": 140,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.224164962768555,
+          20.902088165283203,
+          16.04172706604004,
+          17.597257614135742,
+          15.920150756835938,
+          15.857810974121094
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 117,
+        "label": "g5\u00b7",
+        "assigned_at": 141,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.937902450561523,
+          17.54840850830078,
+          16.489784240722656,
+          14.312012672424316,
+          16.550790786743164,
+          12.565699577331543
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 119,
+        "label": "g5",
+        "assigned_at": 143,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          8.415875434875488,
+          13.8548583984375,
+          15.170923233032227,
+          9.806984901428223,
+          17.038908004760742,
+          15.651845932006836
+        ],
+        "kept_when_scored": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 120,
+        "label": "h3\u00b7",
+        "assigned_at": 144,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.863933563232422,
+          34.42188262939453,
+          20.08722686767578,
+          13.41681957244873,
+          19.356462478637695,
+          15.227736473083496
+        ],
+        "kept_when_scored": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 51852,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      2,
+      8
+    ],
+    "moves": [
+      "g1f3",
+      "f3g1"
+    ],
+    "completion_position": 11,
+    "separator_position": 37,
+    "tokens": [
+      {
+        "position": 3,
+        "label": "g1f3\u00b7",
+        "assigned_at": 27,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          9.018664360046387,
+          11.685651779174805,
+          21.779674530029297,
+          15.79452133178711,
+          18.808151245117188,
+          16.381214141845703
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_sep": [
+          true,
+          false,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ]
+      },
+      {
+        "position": 10,
+        "label": "f3",
+        "assigned_at": 34,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.86257266998291,
+          18.287960052490234,
+          25.43378257751465,
+          17.823041915893555,
+          16.324947357177734,
+          14.15919303894043
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          true,
+          true,
+          true,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 11,
+        "label": "g1\u00b7",
+        "assigned_at": 35,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.565999507904053,
+          22.078889846801758,
+          19.742090225219727,
+          15.462882995605469,
+          13.873512268066406,
+          11.417469024658203
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          true,
+          true,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  },
+  {
+    "file_index": 51852,
+    "kind": "quiet_piece_return",
+    "move_indices": [
+      8,
+      16
+    ],
+    "moves": [
+      "f3g1",
+      "g1f3"
+    ],
+    "completion_position": 19,
+    "separator_position": 37,
+    "tokens": [
+      {
+        "position": 10,
+        "label": "f3",
+        "assigned_at": 34,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          6.86257266998291,
+          18.287960052490234,
+          25.43378257751465,
+          17.823041915893555,
+          16.324947357177734,
+          14.15919303894043
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          true,
+          true,
+          true,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          false,
+          true,
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 11,
+        "label": "g1\u00b7",
+        "assigned_at": 35,
+        "return_known_when_scored": true,
+        "scored_during_source": true,
+        "score": [
+          7.565999507904053,
+          22.078889846801758,
+          19.742090225219727,
+          15.462882995605469,
+          13.873512268066406,
+          11.417469024658203
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          true,
+          true,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          false,
+          true,
+          true,
+          false,
+          false,
+          false
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "position": 19,
+        "label": "g1f3\u00b7",
+        "assigned_at": 43,
+        "return_known_when_scored": true,
+        "scored_during_source": false,
+        "score": [
+          9.416940689086914,
+          23.86250114440918,
+          12.406298637390137,
+          13.82084846496582,
+          13.437546730041504,
+          14.160614967346191
+        ],
+        "kept_when_scored": [
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "kept_at_sep": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "kept_at_last_prediction": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ]
+  }
+]
