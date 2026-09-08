@@ -7,6 +7,9 @@ from llmpr_torch.attention import (
 from llmpr_torch.lora import TARGET_MODULES, attach_lora
 from llmpr_torch.scored import ScoredRetention, enable_scored_retention
 from llmpr_torch.soundness import run_checks
+from llmpr_torch.policies import VariableSWA
+from llmpr_torch.tokenization import TokenizedEpisode
+from llmpr_torch.training import make_mask
 
 
 def tiny_config():
@@ -60,16 +63,27 @@ def test_qwen_dense_variable_window_mask_is_batch_invariant():
     torch.testing.assert_close(batched, torch.cat(singles), atol=1e-6, rtol=1e-5)
 
 
-def test_all_layer_fixed_swa_config_and_no_eviction_identity():
+def test_variable_swa_training_mask_uses_one_window_per_row():
+    row = TokenizedEpisode(input_ids=(1, 2, 3, 4, 5, 6),
+                           labels=(-100, -100, -100, -100, 5, 6), prompt_length=4,
+                           answer_length=2, support_token_spans=())
+    actual = make_mask([row, row], VariableSWA(2, 4), "cpu", torch.float32,
+                       windows=[2, 4])
+    expected = dense_causal_mask(6, windows=torch.tensor([2, 4]))
+    torch.testing.assert_close(actual, expected)
+
+
+def test_all_layer_fixed_swa_config_matches_dense_reference_with_eviction():
     torch.manual_seed(13)
     full = Qwen3ForCausalLM(tiny_config()).eval()
-    swa_config = configure_fixed_swa(tiny_config(), window=32)
+    swa_config = configure_fixed_swa(tiny_config(), window=3)
     assert set(swa_config.layer_types) == {"sliding_attention"}
     swa = Qwen3ForCausalLM(swa_config).eval()
     swa.load_state_dict(full.state_dict())
     tokens = torch.tensor([[1, 2, 3, 4, 5, 6]])
+    mask = qwen_mask_mapping(dense_causal_mask(tokens.shape[1], windows=3))
     with torch.no_grad():
-        expected = full(input_ids=tokens).logits
+        expected = full(input_ids=tokens, attention_mask=mask).logits
         actual = swa(input_ids=tokens).logits
     torch.testing.assert_close(actual, expected, atol=1e-6, rtol=1e-5)
 
@@ -107,3 +121,14 @@ def test_backend_cache_and_no_eviction_restart_soundness():
     assert report["finite"]
     assert report["cached_full_max_abs_error"] < 1e-5
     assert report["no_eviction_restart_max_abs_error"] < 1e-5
+
+
+def test_soundness_reports_native_swa_eviction_equivalence():
+    torch.manual_seed(23)
+    full = Qwen3ForCausalLM(tiny_config())
+    swa = Qwen3ForCausalLM(configure_fixed_swa(tiny_config(), window=3))
+    swa.load_state_dict(full.state_dict())
+    report = run_checks(
+        full, torch.tensor([[1, 2, 3, 4, 5, 6]]), window=3, swa_model=swa)
+    assert report["native_swa_evicted_tokens"] == 3
+    assert report["native_swa_dense_max_abs_error"] < 1e-5

@@ -4,7 +4,7 @@ from llmpr_torch.evaluation import (
     RestartMode, last_restart_before, parse_policy, parse_restart,
     policy_visibility, reconstruction_positions,
 )
-from llmpr_torch.policies import FixedSWA, FullAttention, StreamingLog
+from llmpr_torch.policies import FixedSWA, FullAttention, StreamingLog, VariableSWA
 
 
 def test_restart_boundaries_and_reconstruction_support():
@@ -26,5 +26,6 @@ def test_sparse_policy_visibility_uses_absolute_positions():
 
 def test_policy_and_restart_parsing():
     assert parse_policy("swa:64") == FixedSWA(64)
+    assert parse_policy("variable-swa:64-1024") == VariableSWA(64, 1024)
     assert parse_policy("log:16+8") == StreamingLog(16, 8)
     assert parse_restart("restart:1").every == 1

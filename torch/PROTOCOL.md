@@ -6,7 +6,8 @@
 - PG-19 background text with position-matched counterfactual state updates.
 - Context length 8,192; measure 16,384 only after the 8K path is stable.
 - Full-attention common adaptation and continued-full control.
-- Fixed SWA and one window sampled per example for variable SWA.
+- Fixed SWA and one window sampled per training row for variable SWA; evaluate
+  the latter as a sweep of fixed windows.
 - Answer-only loss and preserve/restart teacher-forced evaluation.
 
 ## Phase 2

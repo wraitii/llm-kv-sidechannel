@@ -14,7 +14,10 @@ from transformers import AutoModelForCausalLM
 from .devices import select_device, training_dtype
 from .lora import attach_lora
 from .evaluation import parse_policy
-from .policies import FullAttention, FixedSWA, StreamingLog, additive_from_visibility, causal_visibility, streaming_visibility
+from .policies import (
+    FullAttention, FixedSWA, StreamingLog, VariableSWA,
+    additive_from_visibility, causal_visibility, streaming_visibility,
+)
 from .scored import ScoredRetention, enable_scored_retention
 
 
@@ -45,15 +48,20 @@ def main() -> None:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--lengths", default="2048,4096,8192")
     parser.add_argument("--microbatches", default="1,2,4")
+    parser.add_argument("--effective-batch", type=int, required=True,
+                        help="fixed effective batch; must be divisible by every microbatch")
     parser.add_argument("--updates", type=int, default=5)
     parser.add_argument("--warmup", type=int, default=1)
     parser.add_argument("--vocab-limit", type=int,
                         help="sample IDs below this value when testing a custom tokenizer")
     parser.add_argument("--policy", default="full",
-                        help="full, swa:N, log:R+M, or scored:R+M")
+                        help="full, swa:N, variable-swa:MIN-MAX, log:R+M, or scored:R+M")
     args = parser.parse_args()
-    if args.updates < 1 or args.warmup < 0:
-        parser.error("updates must be positive and warmup non-negative")
+    if args.updates < 1 or args.warmup < 0 or args.effective_batch < 1:
+        parser.error("updates/effective-batch must be positive and warmup non-negative")
+    microbatches = [int(value) for value in args.microbatches.split(",")]
+    if any(value < 1 or args.effective_batch % value for value in microbatches):
+        parser.error("every microbatch must be positive and exactly divide --effective-batch")
     device = select_device(args.device)
     dtype = training_dtype(device)
     policy = parse_policy(args.policy)
@@ -74,7 +82,8 @@ def main() -> None:
     vocab = min(model.config.vocab_size, args.vocab_limit or model.config.vocab_size)
     generator = torch.Generator(device="cpu").manual_seed(1729)
     for length in map(int, args.lengths.split(",")):
-        for batch_size in map(int, args.microbatches.split(",")):
+        for batch_size in microbatches:
+            grad_accum = args.effective_batch // batch_size
             if device.type == "cuda":
                 torch.cuda.empty_cache()
                 torch.cuda.reset_peak_memory_stats(device)
@@ -85,22 +94,29 @@ def main() -> None:
             error = None
             try:
                 for update in range(args.warmup + args.updates):
-                    ids = torch.randint(vocab, (batch_size, length), generator=generator).to(device)
-                    labels = ids.clone()
-                    if isinstance(policy, FullAttention) or isinstance(policy, ScoredRetention):
-                        visible = causal_visibility(length)
-                    elif isinstance(policy, FixedSWA):
-                        visible = causal_visibility(length, policy.window)
-                    else:
-                        visible = streaming_visibility(length, policy)
-                    mask = additive_from_visibility(
-                        np.broadcast_to(visible, (batch_size, length, length)),
-                        device=device, dtype=dtype)
                     optimizer.zero_grad(set_to_none=True)
                     started = time.perf_counter()
-                    loss = model(input_ids=ids, labels=labels,
-                                 attention_mask={"full_attention": mask}, use_cache=False).loss
-                    loss.backward()
+                    for _ in range(grad_accum):
+                        ids = torch.randint(
+                            vocab, (batch_size, length), generator=generator).to(device)
+                        labels = ids.clone()
+                        if isinstance(policy, FullAttention) or isinstance(policy, ScoredRetention):
+                            visible = causal_visibility(length)
+                        elif isinstance(policy, FixedSWA):
+                            visible = causal_visibility(length, policy.window)
+                        elif isinstance(policy, VariableSWA):
+                            windows = torch.randint(
+                                policy.minimum, policy.maximum + 1, (batch_size,),
+                                generator=generator).numpy()
+                            visible = causal_visibility(length, windows)
+                        else:
+                            visible = streaming_visibility(length, policy)
+                        mask = additive_from_visibility(
+                            np.broadcast_to(visible, (batch_size, length, length)),
+                            device=device, dtype=dtype)
+                        loss = model(input_ids=ids, labels=labels,
+                                     attention_mask={"full_attention": mask}, use_cache=False).loss
+                        (loss / grad_accum).backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                     optimizer.step()
                     if device.type == "cuda":
@@ -112,9 +128,11 @@ def main() -> None:
                 status, error = "oom", str(caught)
             record = {"event": "capacity", "status": status, "length": length,
                       "policy": args.policy,
-                      "microbatch": batch_size, "complete_updates": len(durations),
+                      "microbatch": batch_size, "grad_accum": grad_accum,
+                      "effective_batch": args.effective_batch,
+                      "complete_updates": len(durations),
                       "mean_step_s": sum(durations) / len(durations) if durations else None,
-                      "tokens_per_s": (length * batch_size * len(durations) / sum(durations)) if durations else None,
+                      "tokens_per_s": (length * args.effective_batch * len(durations) / sum(durations)) if durations else None,
                       "error": error}
             if device.type == "cuda":
                 record.update({"peak_allocated_bytes": torch.cuda.max_memory_allocated(device),

@@ -80,6 +80,14 @@ HF_HUB_OFFLINE=1 uv run --locked llmpr-qwen-smoke \
 
 HF_HUB_OFFLINE=1 uv run --locked llmpr-qwen-smoke \
   --model models/Qwen3-1.7B-Base --device cuda --window 128
+
+HF_HUB_OFFLINE=1 uv run --locked llmpr-soundness \
+  --model models/Qwen3-1.7B-Base --device cuda --length 32 --window 8
+
+HF_HUB_OFFLINE=1 uv run --locked llmpr-capacity \
+  --model models/Qwen3-1.7B-Base --device cuda --policy full \
+  --lengths 2048,4096,8192,12288,16384 --microbatches 1,2,4 \
+  --effective-batch 16
 ```
 
 The expected model hash is recorded in `model-snapshots.json`. Use

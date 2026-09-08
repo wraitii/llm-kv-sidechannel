@@ -14,7 +14,10 @@ from .checkpointing import latest_checkpoint, load_checkpoint, save_checkpoint
 from .devices import select_device, training_dtype
 from .evaluation import load_episodes, parse_policy, Policy
 from .lora import attach_lora
-from .policies import FullAttention, FixedSWA, StreamingLog, additive_from_visibility, causal_visibility, streaming_visibility
+from .policies import (
+    FullAttention, FixedSWA, StreamingLog, VariableSWA,
+    additive_from_visibility, causal_visibility, streaming_visibility,
+)
 from .tokenization import TokenizedEpisode, tokenize_episode
 from .scored import ScoredRetention, enable_scored_retention
 
@@ -30,15 +33,20 @@ def load_config(path: Path) -> dict:
     return config
 
 
-def make_mask(rows: list[TokenizedEpisode], policy: Policy, device, dtype) -> torch.Tensor:
+def make_mask(rows: list[TokenizedEpisode], policy: Policy, device, dtype,
+              windows: list[int] | None = None) -> torch.Tensor:
     length = max(len(row.input_ids) for row in rows)
     masks = []
-    for row in rows:
+    if isinstance(policy, VariableSWA) and (windows is None or len(windows) != len(rows)):
+        raise ValueError("variable SWA requires one sampled window per row")
+    for index, row in enumerate(rows):
         active = len(row.input_ids)
         if isinstance(policy, FullAttention):
             visible = causal_visibility(active)
         elif isinstance(policy, FixedSWA):
             visible = causal_visibility(active, policy.window)
+        elif isinstance(policy, VariableSWA):
+            visible = causal_visibility(active, windows[index])
         elif isinstance(policy, StreamingLog):
             visible = streaming_visibility(active, policy)
         elif isinstance(policy, ScoredRetention):
@@ -53,14 +61,16 @@ def make_mask(rows: list[TokenizedEpisode], policy: Policy, device, dtype) -> to
     return additive_from_visibility(np.stack(masks), device=device, dtype=dtype)
 
 
-def collate(rows: list[TokenizedEpisode], policy: Policy, device, dtype):
+def collate(rows: list[TokenizedEpisode], policy: Policy, device, dtype,
+            windows: list[int] | None = None):
     length = max(len(row.input_ids) for row in rows)
     input_ids = torch.zeros((len(rows), length), dtype=torch.long, device=device)
     labels = torch.full_like(input_ids, -100)
     for index, row in enumerate(rows):
         input_ids[index, :len(row.input_ids)] = torch.tensor(row.input_ids, device=device)
         labels[index, :len(row.labels)] = torch.tensor(row.labels, device=device)
-    return input_ids, labels, {"full_attention": make_mask(rows, policy, device, dtype)}
+    return input_ids, labels, {
+        "full_attention": make_mask(rows, policy, device, dtype, windows=windows)}
 
 
 def cosine_scheduler(optimizer, warmup: int, total: int):
@@ -136,7 +146,13 @@ def main() -> None:
         for _ in range(int(config["grad_accum"])):
             indices = torch.randint(len(encoded), (int(config["batch_size"]),), generator=sampler).tolist()
             batch = [encoded[index] for index in indices]
-            input_ids, labels, mask = collate(batch, policy, device, dtype)
+            windows = None
+            if isinstance(policy, VariableSWA):
+                windows = torch.randint(
+                    policy.minimum, policy.maximum + 1, (len(batch),),
+                    generator=sampler).tolist()
+            input_ids, labels, mask = collate(
+                batch, policy, device, dtype, windows=windows)
             loss = model(input_ids=input_ids, labels=labels, attention_mask=mask, use_cache=False).loss
             (loss / int(config["grad_accum"])).backward()
             accumulated += float(loss.detach().cpu()) / int(config["grad_accum"])

@@ -25,7 +25,9 @@ uv run --locked llmpr-train --config configs/full.json
 uv run --locked llmpr-train --config configs/full.json --resume
 ```
 
-Policy strings are `full`, `swa:N`, `log:R+M`, and `scored:R+M`. Scored
+Policy strings are `full`, `swa:N`, `variable-swa:MIN-MAX`, `log:R+M`, and
+`scored:R+M`. Variable SWA samples one window independently for every training
+row and is evaluated using an explicit sweep of fixed `swa:N` policies. Scored
 retention assigns an immutable priority in each layer and uses an exact hard
 selection in the forward pass with a straight-through scorer gradient.
 
@@ -46,14 +48,16 @@ N, while `restart:answer` rebuilds once at the answer boundary.
 
 ## Machine soundness and capacity
 
-These are separate commands. Soundness checks cache/full logits and the
-no-eviction replay identity. Capacity performs complete LoRA updates and never
-loads, writes, or resumes experiment checkpoints.
+These are separate commands. Soundness checks cache/full logits, the
+no-eviction replay identity, and native SDPA SWA against a dense reference with
+actual eviction. Capacity performs complete LoRA updates at a fixed effective
+batch and never loads, writes, or resumes experiment checkpoints.
 
 ```bash
 uv run --locked llmpr-soundness --model models/Qwen3-1.7B-Base --device cuda
 uv run --locked llmpr-capacity --model models/Qwen3-1.7B-Base --device cuda \
-  --policy full --lengths 2048,4096,8192,12288,16384 --microbatches 1,2,4
+  --policy full --lengths 2048,4096,8192,12288,16384 --microbatches 1,2,4 \
+  --effective-batch 16
 ```
 
 Run capacity once per policy/backend. The current streaming-log and scored

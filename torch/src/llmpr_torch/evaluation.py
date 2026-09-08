@@ -14,13 +14,13 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .devices import select_device, training_dtype
 from .lora import attach_lora
-from .policies import FullAttention, FixedSWA, StreamingLog, additive_from_visibility
+from .policies import FullAttention, FixedSWA, StreamingLog, VariableSWA, additive_from_visibility
 from .tokenization import tokenize_episode
 from .state_data import StateEpisode, StateEvent
 from .scored import ScoredRetention, enable_scored_retention
 
 
-Policy = FullAttention | FixedSWA | StreamingLog | ScoredRetention
+Policy = FullAttention | FixedSWA | VariableSWA | StreamingLog | ScoredRetention
 
 
 def qwen_layers(model):
@@ -54,13 +54,18 @@ def parse_policy(value: str) -> Policy:
         return FullAttention()
     if value.startswith("swa:"):
         return FixedSWA(int(value.split(":", 1)[1]))
+    if value.startswith("variable-swa:"):
+        minimum, maximum = value.split(":", 1)[1].split("-")
+        return VariableSWA(int(minimum), int(maximum))
     if value.startswith("log:"):
         recent, memory = value.split(":", 1)[1].split("+")
         return StreamingLog(int(recent), int(memory))
     if value.startswith("scored:"):
         recent, memory = value.split(":", 1)[1].split("+")
         return ScoredRetention(int(recent), int(memory))
-    raise ValueError(f"unknown policy {value!r}; use full, swa:N, log:R+M, or scored:R+M")
+    raise ValueError(
+        f"unknown policy {value!r}; use full, swa:N, variable-swa:MIN-MAX, "
+        "log:R+M, or scored:R+M")
 
 
 def parse_restart(value: str) -> RestartMode:
@@ -229,6 +234,9 @@ def main() -> None:
                     raise ValueError(f"checkpoint parameter is absent from model: {name}")
                 trainable[name].copy_(value.to(device))
     policies = [parse_policy(value) for value in args.policies.split(",")]
+    if any(isinstance(policy, VariableSWA) for policy in policies):
+        raise ValueError(
+            "variable SWA is a train-only distribution; evaluate its checkpoint at fixed swa:N values")
     if any(isinstance(policy, ScoredRetention) for policy in policies) and not isinstance(trained_policy, ScoredRetention):
         raise ValueError("scored evaluation requires a scored training checkpoint")
     modes = [parse_restart(value) for value in args.restart_modes.split(",")]

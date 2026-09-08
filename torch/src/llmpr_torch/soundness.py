@@ -5,9 +5,9 @@ import argparse
 import json
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoConfig, AutoModelForCausalLM
 
-from .attention import dense_causal_mask, qwen_mask_mapping
+from .attention import configure_fixed_swa, dense_causal_mask, qwen_mask_mapping
 from .devices import select_device, training_dtype
 
 
@@ -25,7 +25,7 @@ def cached_logits(model, tokens: torch.Tensor) -> torch.Tensor:
 
 
 @torch.no_grad()
-def run_checks(model, tokens: torch.Tensor, window: int) -> dict[str, float | bool]:
+def run_checks(model, tokens: torch.Tensor, window: int, swa_model=None) -> dict[str, float | bool]:
     model.eval()
     full = model(input_ids=tokens, use_cache=False).logits
     incremental = cached_logits(model, tokens)
@@ -46,11 +46,18 @@ def run_checks(model, tokens: torch.Tensor, window: int) -> dict[str, float | bo
     # Only positions before eviction should be identical: after eviction replay
     # intentionally removes contextual information carried by surviving KVs.
     no_eviction_error = float((dense[:, :window] - replay_logits[:, :window]).abs().max().cpu())
-    return {
+    report = {
         "finite": bool(torch.isfinite(full).all()),
         "cached_full_max_abs_error": cache_error,
         "no_eviction_restart_max_abs_error": no_eviction_error,
     }
+    if swa_model is not None:
+        swa_model.eval()
+        native = swa_model(input_ids=tokens, use_cache=False).logits
+        report["native_swa_dense_max_abs_error"] = float(
+            (native - dense).abs().max().cpu())
+        report["native_swa_evicted_tokens"] = max(0, tokens.shape[1] - window)
+    return report
 
 
 def main() -> None:
@@ -62,17 +69,24 @@ def main() -> None:
     parser.add_argument("--atol", type=float, default=1e-4)
     args = parser.parse_args()
     device = select_device(args.device)
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    if args.length <= args.window:
+        parser.error("--length must exceed --window so the native SWA check exercises eviction")
     model = AutoModelForCausalLM.from_pretrained(
         args.model, dtype=training_dtype(device), attn_implementation="eager").to(device)
+    swa_config = configure_fixed_swa(AutoConfig.from_pretrained(args.model), args.window)
+    swa_model = AutoModelForCausalLM.from_pretrained(
+        args.model, config=swa_config, dtype=training_dtype(device),
+        attn_implementation="sdpa").to(device)
     vocab = model.config.vocab_size
     tokens = torch.randint(vocab, (1, args.length), generator=torch.Generator().manual_seed(7)).to(device)
-    report = run_checks(model, tokens, args.window)
+    report = run_checks(model, tokens, args.window, swa_model=swa_model)
     report.update({"model": args.model, "device": str(device), "length": args.length,
                    "window": args.window, "atol": args.atol})
     report["passed"] = (report["finite"]
                         and report["cached_full_max_abs_error"] <= args.atol
-                        and report["no_eviction_restart_max_abs_error"] <= args.atol)
+                        and report["no_eviction_restart_max_abs_error"] <= args.atol
+                        and report["native_swa_dense_max_abs_error"] <= args.atol
+                        and report["native_swa_evicted_tokens"] > 0)
     print(json.dumps(report, indent=2, sort_keys=True))
     if not report["passed"]:
         raise SystemExit(1)
