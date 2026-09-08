@@ -104,6 +104,14 @@ Training currently uses answer-only loss on the injected tasks. The raw book
 files make a future ordinary-text NLL evaluator possible, but ordinary PG-19
 language-model mixing and clean-text NLL reporting are not implemented yet.
 
+During training, `metrics.jsonl` records loss, gradient norm, learning rate,
+step time, context- and answer-token throughput, peak allocated/reserved VRAM,
+and ETA. A background sampler writes GPU utilization, VRAM, temperature, power,
+CPU/RAM, process RSS, and disk space to `system.jsonl` every 10 seconds. Set
+`monitor_interval_s` in the run config to change the interval, or to `0` to
+disable system sampling. Non-finite loss or gradient norm stops training before
+another checkpoint can be written.
+
 ### End-to-end one-step smoke test
 
 This exercises HF streaming, Qwen tokenization, generated JSONL loading, LoRA,

@@ -14,6 +14,7 @@ from .checkpointing import latest_checkpoint, load_checkpoint, save_checkpoint
 from .devices import select_device, training_dtype
 from .evaluation import load_episodes, parse_policy, Policy
 from .lora import attach_lora
+from .monitoring import SystemMonitor
 from .policies import (
     FullAttention, FixedSWA, StreamingLog, VariableSWA,
     additive_from_visibility, causal_visibility, streaming_visibility,
@@ -126,6 +127,12 @@ def main() -> None:
     scheduler = cosine_scheduler(optimizer, int(config.get("warmup_steps", 0)), int(config["steps"]))
     run_dir = Path(config["run_dir"])
     run_dir.mkdir(parents=True, exist_ok=True)
+    monitor_interval = float(config.get("monitor_interval_s", 10))
+    if monitor_interval < 0:
+        raise ValueError("monitor_interval_s must be nonnegative")
+    monitor = SystemMonitor(run_dir, monitor_interval) if monitor_interval else None
+    if monitor:
+        monitor.start()
     start_step = micro_step = tokens_seen = 0
     if args.resume:
         checkpoint = latest_checkpoint(run_dir) if args.resume == "auto" else Path(args.resume)
@@ -141,8 +148,12 @@ def main() -> None:
     if final_step < start_step:
         parser.error("--stop-after precedes the resumed checkpoint")
     for step in range(start_step + 1, final_step + 1):
+        step_started = time.perf_counter()
+        if device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(device)
         optimizer.zero_grad(set_to_none=True)
         accumulated = 0.0
+        context_tokens = answer_tokens = 0
         for _ in range(int(config["grad_accum"])):
             indices = torch.randint(len(encoded), (int(config["batch_size"]),), generator=sampler).tolist()
             batch = [encoded[index] for index in indices]
@@ -154,17 +165,37 @@ def main() -> None:
             input_ids, labels, mask = collate(
                 batch, policy, device, dtype, windows=windows)
             loss = model(input_ids=input_ids, labels=labels, attention_mask=mask, use_cache=False).loss
+            if not torch.isfinite(loss):
+                raise FloatingPointError(f"non-finite loss at step {step}")
             (loss / int(config["grad_accum"])).backward()
             accumulated += float(loss.detach().cpu()) / int(config["grad_accum"])
-            tokens_seen += int((labels != -100).sum())
+            batch_answer_tokens = int((labels != -100).sum())
+            answer_tokens += batch_answer_tokens
+            context_tokens += sum(len(row.input_ids) for row in batch)
+            tokens_seen += batch_answer_tokens
             micro_step += 1
         grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), float(config.get("max_grad_norm", 1.0)))
+        if not torch.isfinite(grad_norm):
+            raise FloatingPointError(f"non-finite gradient norm at step {step}")
         optimizer.step()
         scheduler.step()
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        step_s = time.perf_counter() - step_started
+        eta_s = step_s * (final_step - step)
         record = {"event": "train", "step": step, "micro_step": micro_step,
                   "loss": accumulated, "grad_norm": float(grad_norm),
                   "learning_rate": scheduler.get_last_lr()[0], "tokens_seen": tokens_seen,
-                  "elapsed_s": time.time() - started}
+                  "context_tokens": context_tokens, "answer_tokens": answer_tokens,
+                  "step_s": step_s,
+                  "context_tokens_per_s": context_tokens / step_s,
+                  "answer_tokens_per_s": answer_tokens / step_s,
+                  "eta_s": eta_s, "elapsed_s": time.time() - started}
+        if device.type == "cuda":
+            record.update({
+                "peak_allocated_bytes": torch.cuda.max_memory_allocated(device),
+                "peak_reserved_bytes": torch.cuda.max_memory_reserved(device),
+            })
         with metrics.open("a") as handle:
             handle.write(json.dumps(record) + "\n")
         print(json.dumps(record), flush=True)
@@ -174,6 +205,8 @@ def main() -> None:
                 run_dir / f"checkpoint-{step:07d}.pt", model=model, optimizer=optimizer,
                 scheduler=scheduler, scaler=None, step=step, micro_step=micro_step,
                 tokens_seen=tokens_seen, config=config, generators=generators)
+    if monitor:
+        monitor.close()
 
 
 if __name__ == "__main__":

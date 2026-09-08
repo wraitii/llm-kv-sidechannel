@@ -15,5 +15,6 @@
   "lora_rank": 16,
   "lora_alpha": 32,
   "save_every": 1,
+  "monitor_interval_s": 10,
   "seed": 1337
 }
