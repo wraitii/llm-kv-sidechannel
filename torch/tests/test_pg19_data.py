@@ -26,15 +26,32 @@ TEXT = "A long chapter continued with ordinary prose and quiet conversation. " *
     lambda text, **kw: make_counterfactual_pair(text, natural=False, **kw),
     lambda text, **kw: make_counterfactual_pair(text, natural=True, **kw),
 ])
-def test_fit_pair_respects_complete_context_budget(builder):
+@pytest.mark.parametrize("context_length", [1024, 2048, 3072, 4096])
+def test_fit_pair_respects_complete_context_budget(builder, context_length):
     tokenizer = CharacterTokenizer()
     pair = fit_pair(tokenizer, TEXT, background_id="book", seed=7,
-                    context_length=1024, builder=builder)
-    encoded = [tokenize_episode(tokenizer, row, max_length=1024) for row in pair]
+                    context_length=context_length, builder=builder)
+    encoded = [tokenize_episode(tokenizer, row, max_length=context_length) for row in pair]
     validate_counterfactual_pair(*encoded)
-    assert all(row.context_length == 1024 for row in pair)
-    assert max(len(row.input_ids) for row in encoded) <= 1024
-    assert max(len(row.input_ids) for row in encoded) > 900
+    assert all(row.context_length == context_length for row in pair)
+    assert max(len(row.input_ids) for row in encoded) <= context_length
+    assert max(len(row.input_ids) for row in encoded) > context_length * 0.9
+
+
+def test_fit_pair_tokenizes_only_a_bounded_window_of_a_large_book():
+    class TrackingTokenizer(CharacterTokenizer):
+        def __init__(self):
+            self.largest_input = 0
+
+        def __call__(self, text, **kwargs):
+            self.largest_input = max(self.largest_input, len(text))
+            return super().__call__(text, **kwargs)
+
+    tokenizer = TrackingTokenizer()
+    fit_pair(tokenizer, TEXT * 100, background_id="large-book", seed=11,
+             context_length=4096, builder=make_passcode_pair)
+
+    assert tokenizer.largest_input <= 4096 * 8
 
 
 def test_book_selection_and_ids_are_stable():
