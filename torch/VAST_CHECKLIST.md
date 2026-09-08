@@ -2,6 +2,29 @@
 
 Run this checklist whenever switching to a new instance or physical host.
 
+The staged helper scripts live in `torch/scripts/vast/`. They never chain offer
+search into rental, training into shutdown, or shutdown into destruction. Run
+`00-preflight.sh`, then `10-search-offers.sh`; choose an offer yourself before
+calling `20-create-instance.sh`.
+
+```text
+00-preflight.sh                          local/auth/SSH/Git checks (read-only)
+10-search-offers.sh                      worldwide guarded 5090 search (read-only)
+20-create-instance.sh OFFER [LABEL] [GB] show offer, confirm, then rent
+30-show-instance.sh INSTANCE             status and SSH endpoint (read-only)
+40-bootstrap-instance.sh INSTANCE [SHA]  clone exact commit and run uv sync
+80-recover-files.sh INSTANCE RUN CONFIG DATASET
+                                         pull outputs/config/manifest locally
+90-stop-instance.sh INSTANCE             show status and require confirmation
+99-destroy-instance.sh INSTANCE          require recovery marker + confirmation
+```
+
+The default image is `vastai/base-image:@vastai-automatic-tag`, disk allocation
+is 100 GB, maximum all-in hourly price is $0.80, and minimum reliability is
+0.99. Override these locally with `VAST_IMAGE`, `VAST_STORAGE_GB`,
+`VAST_MAX_HOURLY`, or `VAST_MIN_RELIABILITY`. Do not put overrides containing
+secrets into committed files.
+
 ## Before renting
 
 - [ ] RTX 5090 with 32 GB VRAM; verified host with high reliability.
@@ -206,6 +229,10 @@ particular Vast host.
 
 ## Before stopping or destroying
 
+- [ ] Recover files from the instance with `80-recover-files.sh` while SSH is
+      still available; do this before stopping or destroying it.
+- [ ] Confirm the local `RECOVERY_COMPLETE` marker exists for the correct
+      instance and run. This marker is required by `99-destroy-instance.sh`.
 - [ ] Stop training cleanly and wait for the final checkpoint write to finish.
 - [ ] Copy adapters, optimizer/scheduler state, RNG state, configs, manifests,
       logs, per-example results, and environment/hardware report locally.
