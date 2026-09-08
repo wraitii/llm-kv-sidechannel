@@ -21,6 +21,7 @@ dev = ["pytest==9.1.1"]
 [project.scripts]
 llmpr-qwen-smoke = "llmpr_torch.smoke:main"
 llmpr-prepare-state = "llmpr_torch.prepare_state:main"
+llmpr-prepare-pg19 = "llmpr_torch.pg19_data:main"
 llmpr-train = "llmpr_torch.training:main"
 llmpr-evaluate = "llmpr_torch.evaluation:main"
 llmpr-soundness = "llmpr_torch.soundness:main"

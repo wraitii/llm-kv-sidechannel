@@ -196,6 +196,9 @@ def load_episodes(path: Path) -> Iterable[StateEpisode]:
                 prompt=row["prompt"], answer=row["answer"],
                 events=tuple(StateEvent(**event) for event in row["events"]),
                 query_entity=row["query_entity"], background_id=row["background_id"],
+                task_type=row.get("task_type", "state"),
+                difficulty=row.get("difficulty", "natural"),
+                context_length=row.get("context_length"),
             )
 
 

@@ -13,6 +13,112 @@ cache cropping. Evaluation reconstructs from surviving raw token IDs at their
 original positions. This dense replay is deliberately slow and provides the
 semantic reference for a later efficient cache backend.
 
+## PG-19 dataset preparation
+
+The preparation command streams real books from the `emozilla/pg19` Hugging
+Face mirror. Streaming fetches only the Parquet shards needed to reach the
+requested number of books; it does not materialize the full corpus. Install the
+optional data dependency before the first run:
+
+```bash
+cd torch
+uv sync --extra dev --extra data
+```
+
+### Small local dataset
+
+The following produces 48 training episodes and 12 episodes in each evaluation
+split: `books x context lengths x task levels x 2 counterfactual variants`.
+
+```bash
+uv run llmpr-prepare-pg19 \
+  --model models/Qwen3-1.7B-Base \
+  --output-dir data/pg19-local-1k \
+  --context-lengths 1024 \
+  --train-books 8 --validation-books 2 --test-books 2
+```
+
+The default task levels are `passcode`, `structured`, and `natural`. Restrict
+them with, for example, `--levels passcode,structured`. Every generated row is
+a complete prompt, answer, and EOS that fits within its declared token budget.
+Multiple budgets can be generated together:
+
+```bash
+uv run llmpr-prepare-pg19 \
+  --model models/Qwen3-1.7B-Base \
+  --output-dir data/pg19-2k-8k \
+  --context-lengths 2048,4096,8192 \
+  --train-books 256 --validation-books 50 --test-books 100
+```
+
+This larger example creates 4,608 training and 2,700 evaluation episodes. It is
+a dataset construction example, not a claim that every policy and length fits
+on a particular GPU. Run `llmpr-capacity` first, then omit lengths that do not
+fit. When training on mixed lengths, set `max_length` to the largest generated
+budget. Batches are padded to their longest row, so `batch_size: 1` or separate
+runs per length avoid wasted padding during initial capacity measurements.
+
+### Output and reproducibility
+
+The output directory contains:
+
+- `train.jsonl`, `validation.jsonl`, and `test.jsonl`: answer-supervised probe
+  episodes consumed by `llmpr-train` and `llmpr-evaluate`;
+- `pg19-{split}.jsonl`: the selected unmodified books, retained for future
+  clean-text language-model evaluation;
+- `manifest.json`: requested settings, task counts, and the immutable HF commit
+  resolved from `--revision`.
+
+PG-19's original book-level splits are preserved, so a book cannot cross from
+training into evaluation. `--revision main` is convenient for exploration and
+is resolved to an exact commit before data is read. For archival runs, pass a
+known commit explicitly. Public access works without credentials; setting the
+standard `HF_TOKEN` environment variable raises Hugging Face rate limits. Use
+`--cache-dir PATH` to select a cache and `--no-streaming` only when intentionally
+materializing a split.
+
+Generation is deterministic for a given tokenizer, resolved dataset revision,
+and seed. The command refuses to write into a non-empty output directory, so
+choose a new directory or deliberately remove the old derived data before
+rerunning it. The repository ignores `torch/data/` and `torch/outputs/`.
+
+### Train and evaluate
+
+The checked-in `configs/pg19-local-1k.example.json` is a 20-step full-attention
+example matching `data/pg19-local-1k`. Copy it before adjusting paths, lengths,
+or policy:
+
+```bash
+cp configs/pg19-local-1k.example.json configs/pg19-local-1k.json
+uv run --locked llmpr-train --config configs/pg19-local-1k.json
+uv run --locked llmpr-evaluate \
+  --model models/Qwen3-1.7B-Base \
+  --checkpoint outputs/pg19-local-1k-full/checkpoint-0000020.pt \
+  --data data/pg19-local-1k/validation.jsonl \
+  --max-length 1024 \
+  --policies full,swa:512,swa:256 \
+  --restart-modes preserve,restart:answer
+```
+
+Training currently uses answer-only loss on the injected tasks. The raw book
+files make a future ordinary-text NLL evaluator possible, but ordinary PG-19
+language-model mixing and clean-text NLL reporting are not implemented yet.
+
+### End-to-end one-step smoke test
+
+This exercises HF streaming, Qwen tokenization, generated JSONL loading, LoRA,
+backpropagation, and checkpoint writing on Apple Silicon or CUDA:
+
+```bash
+uv run llmpr-prepare-pg19 \
+  --model models/Qwen3-1.7B-Base \
+  --output-dir data/pg19-smoke \
+  --context-lengths 512 \
+  --levels passcode,structured,natural \
+  --train-books 1 --validation-books 1 --test-books 1
+uv run --locked llmpr-train --config configs/pg19-smoke.json --device auto
+```
+
 ## Training and exact resume
 
 Training consumes state-episode JSONL produced by `llmpr-prepare-state` and uses

@@ -31,6 +31,9 @@ class StateEpisode:
     events: tuple[StateEvent, ...]
     query_entity: str
     background_id: str
+    task_type: str = "state"
+    difficulty: str = "natural"
+    context_length: int | None = None
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -76,7 +79,8 @@ def make_counterfactual_pair(
     initial = initial_choices[int(rng.integers(len(initial_choices)))]
     cut1, cut2 = len(background) // 5, (len(background) * 2) // 5
     prefix, middle, suffix = background[:cut1], background[cut1:cut2], background[cut2:]
-    pair_id = _stable_id(background_id, str(seed), entity)
+    pair_id = _stable_id(background_id, str(seed), entity,
+                         "natural" if natural else "structured")
     episodes = []
     for variant, final_owner in zip(("a", "b"), finals, strict=True):
         first = _event_text(entity, None, initial, natural)
@@ -97,6 +101,45 @@ def make_counterfactual_pair(
             example_id=f"{pair_id}-{variant}", pair_id=pair_id, variant=variant,
             prompt=prompt, answer=final_owner, events=events,
             query_entity=entity, background_id=background_id,
+            task_type="state", difficulty="natural" if natural else "structured",
+        ))
+    return episodes[0], episodes[1]
+
+
+def make_passcode_pair(
+    background: str,
+    *,
+    background_id: str,
+    seed: int,
+) -> tuple[StateEpisode, StateEpisode]:
+    """Create a salient key-retrieval pair with a position-matched value."""
+    if len(background) < 600:
+        raise ValueError("background must contain at least 600 characters")
+    rng = np.random.Generator(np.random.PCG64(seed))
+    alphabet = np.asarray(list("ABCDEFGHJKLMNPQRSTUVWXYZ23456789"))
+    values: list[str] = []
+    while len(values) < 2:
+        parts = ["".join(rng.choice(alphabet, size=4)),
+                 "".join(rng.choice(alphabet, size=4))]
+        value = "-".join(parts)
+        if value not in values:
+            values.append(value)
+    cut = len(background) // 4
+    prefix, suffix = background[:cut], background[cut:]
+    pair_id = _stable_id(background_id, str(seed), "passcode")
+    episodes = []
+    for variant, value in zip(("a", "b"), values, strict=True):
+        event = f"IMPORTANT PASSCODE: {value}. Keep this passcode for the question later."
+        chunks = [prefix.rstrip(), "\n\n", event, "\n\n", suffix.lstrip()]
+        event_start = len(chunks[0]) + len(chunks[1])
+        prompt = "".join(chunks) + "\n\nQuestion: What was the important passcode?\nAnswer:"
+        episodes.append(StateEpisode(
+            example_id=f"{pair_id}-{variant}", pair_id=pair_id, variant=variant,
+            prompt=prompt, answer=value,
+            events=(StateEvent("passcode", value, event_start,
+                               event_start + len(event), 0),),
+            query_entity="passcode", background_id=background_id,
+            task_type="passcode", difficulty="salient",
         ))
     return episodes[0], episodes[1]
 
