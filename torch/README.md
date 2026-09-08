@@ -112,6 +112,12 @@ CPU/RAM, process RSS, and disk space to `system.jsonl` every 10 seconds. Set
 disable system sampling. Non-finite loss or gradient norm stops training before
 another checkpoint can be written.
 
+For the first rented-machine lifecycle run, follow the copy-ready 1K/500-step
+run card in [`VAST_CHECKLIST.md`](VAST_CHECKLIST.md) and start from
+`configs/pg19-pilot-1k.example.json`. Do not use `full.example.json` unchanged;
+its paths are placeholders and its 4K setting is intentionally an upper-edge
+configuration for a 32 GB RTX 5090.
+
 ### End-to-end one-step smoke test
 
 This exercises HF streaming, Qwen tokenization, generated JSONL loading, LoRA,
@@ -175,7 +181,9 @@ uv run --locked llmpr-capacity --model models/Qwen3-1.7B-Base --device cuda \
 ```
 
 Run capacity once per policy/backend. The current streaming-log and scored
-training paths use explicit quadratic reference storage; their measurements are
+training paths use explicit quadratic reference storage. Fixed-SWA training
+also materializes a dense quadratic mask; it changes visibility semantics but
+does not currently provide a physical VRAM reduction. These measurements are
 correctness baselines, not claims of bounded physical KV memory.
 
 ## Local smoke test

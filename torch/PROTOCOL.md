@@ -4,7 +4,10 @@
 
 - Qwen3-1.7B-Base with BF16 LoRA.
 - PG-19 background text with position-matched counterfactual state updates.
-- Context length 8,192; measure 16,384 only after the 8K path is stable.
+- Validate the end-to-end lifecycle with a 1,024-token, 500-step pilot first.
+- Use 4,096 as the first full-attention experiment target on a 32 GB RTX 5090;
+  it is an upper-edge setting and must be reconfirmed on every host. Attempt
+  8,192 or 16,384 only on a machine that passes capacity with 10% headroom.
 - Full-attention common adaptation and continued-full control.
 - Fixed SWA and one window sampled per training row for variable SWA; evaluate
   the latter as a sweep of fixed windows.

@@ -19,7 +19,7 @@ calling `20-create-instance.sh`.
 99-destroy-instance.sh INSTANCE          require recovery marker + confirmation
 ```
 
-The default image is `vastai/base-image:@vastai-automatic-tag`, disk allocation
+The default image is `vastai/base-image:cuda-12.8.1-auto`, disk allocation
 is 100 GB, maximum all-in hourly price is $0.80, and minimum reliability is
 0.99. Override these locally with `VAST_IMAGE`, `VAST_STORAGE_GB`,
 `VAST_MAX_HOURLY`, or `VAST_MIN_RELIABILITY`. Do not put overrides containing
@@ -27,6 +27,8 @@ secrets into committed files.
 
 ## Before renting
 
+- [ ] Push the intended commit and rerun preflight until
+      `remote_has_local_commit=true`; bootstrap clones the public remote.
 - [ ] RTX 5090 with 32 GB VRAM; verified host with high reliability.
 - [ ] Use SSH-key authentication and confirm the offer provides direct SSH.
 - [ ] Enough rental duration, disk space, RAM, CPU, and network bandwidth.
@@ -46,7 +48,7 @@ secrets into committed files.
       model, HF cache, selected raw books, datasets, and multiple checkpoints.
 - [ ] Confirm PyTorch sees CUDA and reports the expected device and VRAM.
 - [ ] Clone the exact code commit and confirm `git status --short` is clean.
-- [ ] Run `uv sync --locked --extra dev` with Python 3.12 or 3.13.
+- [ ] Run `uv sync --locked --extra dev --extra data` with Python 3.12 or 3.13.
 - [ ] Record Python, Torch, Transformers, PEFT, CUDA, and cuDNN versions.
 - [ ] Copy the pinned model snapshot and verify the SHA-256 in
       `model-snapshots.json`.
@@ -87,6 +89,78 @@ intended evaluation command at a checkpoint.
       the local workstation, then verify them locally.
 - [ ] Do not commit to the long run until this complete lifecycle succeeds.
 
+## Next-run card: 1K, 500-step pilot
+
+This is the next planned gate before a 4K run. Use a unique UTC-stamped `RUN_ID`
+in both the config filename and `run_dir`; never reuse an output directory.
+
+1. Run preflight, rent a current offer, wait for `running`, and bootstrap the
+   exact pushed commit. Repeat the short machine checks above.
+2. Download the pinned model directly on the instance and verify its checksum:
+
+   ```bash
+   cd /workspace/llm-kv-sidechannel/torch
+   uv run --locked python - <<'PY'
+   import json
+   from huggingface_hub import snapshot_download
+
+   spec = json.load(open("model-snapshots.json"))["Qwen3-1.7B-Base"]
+   snapshot_download(repo_id=spec["repo_id"], revision=spec["revision"],
+                     local_dir=spec["local_dir"])
+   PY
+   expected=$(jq -r '."Qwen3-1.7B-Base".model_safetensors_sha256' model-snapshots.json)
+   printf '%s  %s\n' "$expected" models/Qwen3-1.7B-Base/model.safetensors \
+     | sha256sum -c -
+   ```
+
+3. Generate only the 1K pilot dataset. The output directory must be new:
+
+   ```bash
+   uv run --locked llmpr-prepare-pg19 \
+     --model models/Qwen3-1.7B-Base \
+     --output-dir data/pg19-pilot-1k \
+     --context-lengths 1024 \
+     --train-books 32 --validation-books 8 --test-books 8 \
+     --cache-dir /workspace/cache/pg19
+   sha256sum data/pg19-pilot-1k/{manifest,train,validation,test}.json*
+   ```
+
+4. Copy `configs/pg19-pilot-1k.example.json` to a unique config filename and
+   change `run_dir` to `outputs/$RUN_ID`. Confirm `steps=500`, `batch_size=1`,
+   `grad_accum=16`, `save_every=100`, and `monitor_interval_s=10`.
+5. Train to step 200, inspect and evaluate that checkpoint, then resume to 500:
+
+   ```bash
+   HF_HUB_OFFLINE=1 uv run --locked llmpr-train \
+     --config configs/RUN_CONFIG.json --device cuda --stop-after 200
+   tail -n 5 outputs/RUN_ID/{metrics,system}.jsonl
+   HF_HUB_OFFLINE=1 uv run --locked llmpr-evaluate \
+     --model models/Qwen3-1.7B-Base \
+     --checkpoint outputs/RUN_ID/checkpoint-0000200.pt \
+     --data data/pg19-pilot-1k/validation.jsonl --max-length 1024 \
+     --policies full,swa:512,swa:256 \
+     --restart-modes preserve,restart:answer --examples 12 \
+     | tee outputs/RUN_ID/validation-step-0000200.jsonl
+   HF_HUB_OFFLINE=1 uv run --locked llmpr-train \
+     --config configs/RUN_CONFIG.json --device cuda --resume
+   HF_HUB_OFFLINE=1 uv run --locked llmpr-evaluate \
+     --model models/Qwen3-1.7B-Base \
+     --checkpoint outputs/RUN_ID/checkpoint-0000500.pt \
+     --data data/pg19-pilot-1k/validation.jsonl --max-length 1024 \
+     --policies full,swa:512,swa:256 \
+     --restart-modes preserve,restart:answer --examples 12 \
+     | tee outputs/RUN_ID/validation-step-0000500.jsonl
+   ```
+
+6. Inspect final metrics, system telemetry, disk space, checkpoints, and
+   validation before recovery. Expected training time is roughly 15 minutes;
+   allow 20--30 minutes including evaluation and transfers.
+7. From this workstation, run `80-recover-files.sh INSTANCE RUN_ID
+   configs/RUN_CONFIG.json data/pg19-pilot-1k`. Open the recovered JSONL and
+   checkpoint locally, confirm `RECOVERY_COMPLETE`, then stop or destroy.
+8. After destruction, verify both `vast show instances --raw` and
+   `vast show volumes --raw` contain no unintended billable resources.
+
 ## Full capacity calibration — only when the execution configuration changes
 
 Run this before the first experiment, and repeat it after changing the physical
@@ -98,8 +172,9 @@ Measure complete training updates, not inference or forward-only passes. Include
 LoRA backward, gradient clipping, and the optimizer step. Test full attention
 and each efficient retention backend separately; their limits may differ.
 
-- [ ] Start with microbatch 1 and sweep context lengths 2K, 4K, 8K, then 12K
-      and 16K if useful.
+- [ ] On a 32 GB GPU, start with microbatch 1 and sweep context lengths 1K, 2K,
+      3K, and 4K. Test 6K/8K or higher only when the lower points leave useful
+      headroom or the machine has more VRAM.
 - [ ] At the intended context length, sweep microbatch 1, 2, 4 until OOM or
       throughput stops improving.
 - [ ] Benchmark preserve and restart evaluation separately at batch 1; replay
@@ -144,7 +219,7 @@ PY
 
 git rev-parse HEAD
 git status --short
-uv sync --locked --extra dev
+uv sync --locked --extra dev --extra data
 uv run --locked pytest -q
 
 sha256sum models/Qwen3-1.7B-Base/model.safetensors
@@ -171,6 +246,8 @@ any OOM; the command stops at the first OOM for that reason.
 During calibration and the real run, monitor more than allocated VRAM:
 
 ```bash
+tail -f outputs/RUN_ID/metrics.jsonl
+tail -f outputs/RUN_ID/system.jsonl
 watch -n 1 nvidia-smi
 watch -n 5 df -h
 ```
