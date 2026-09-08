@@ -14,6 +14,14 @@ require_integer DISK_GB "$disk_gb"
 
 offer="$(vast search offers "id=$offer_id rentable=true" --type on-demand \
   --storage "$disk_gb" --limit 1 --raw)"
+# Some Vast API deployments currently return no rows when the documented `id`
+# search field is used, even while the same offer appears in an unfiltered
+# search. Fall back to selecting the requested ID locally from live offers.
+if [[ "$(jq 'length' <<<"$offer")" == 0 ]]; then
+  offer="$(vast search offers "rentable=true" --type on-demand \
+    --storage "$disk_gb" --limit 10000 --raw | \
+    jq --argjson offer_id "$offer_id" '[.[] | select(.id == $offer_id)]')"
+fi
 [[ "$(jq 'length' <<<"$offer")" == 1 ]] || die "offer $offer_id is no longer rentable"
 price="$(jq -r '.[0].dph_total' <<<"$offer")"
 jq -r '.[0] | {

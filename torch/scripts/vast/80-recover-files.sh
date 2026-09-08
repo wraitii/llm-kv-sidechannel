@@ -17,18 +17,20 @@ require_integer INSTANCE_ID "$instance_id"
 remote_repo="${VAST_REMOTE_REPO:-/workspace/llm-kv-sidechannel}"
 destination="$VAST_ARTIFACTS_DIR/instances/$instance_id/$run_id"
 read -r ssh_host ssh_port <<<"$(vast_ssh_parts "$instance_id")"
+known_hosts="$VAST_ARTIFACTS_DIR/known_hosts"
+ssh_command="ssh -o UserKnownHostsFile=$known_hosts -o StrictHostKeyChecking=accept-new -p $ssh_port"
 
 mkdir -p "$destination/outputs"
-rsync -avP -e "ssh -p $ssh_port" \
+rsync -avP -e "$ssh_command" \
   "$ssh_host:$remote_repo/torch/outputs/$run_id/" "$destination/outputs/"
-rsync -avP -e "ssh -p $ssh_port" \
+rsync -avP -e "$ssh_command" \
   "$ssh_host:$remote_repo/torch/$config_path" "$destination/"
-rsync -avP -e "ssh -p $ssh_port" \
+rsync -avP -e "$ssh_command" \
   "$ssh_host:$remote_repo/torch/$dataset_path/manifest.json" "$destination/"
 
 # A second checksum pass transfers any mismatch rather than merely trusting size
 # and modification time. Only mark recovery complete after all three succeed.
-rsync -avc -e "ssh -p $ssh_port" \
+rsync -avc -e "$ssh_command" \
   "$ssh_host:$remote_repo/torch/outputs/$run_id/" "$destination/outputs/"
 printf 'instance_id=%s\nrun_id=%s\nrecovered_at=%s\n' \
   "$instance_id" "$run_id" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \

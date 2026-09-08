@@ -33,7 +33,7 @@ def restore_rng_state(
     np.random.set_state(state["numpy"])
     torch.set_rng_state(state["torch_cpu"].cpu())
     if "torch_cuda" in state and torch.cuda.is_available():
-        torch.cuda.set_rng_state_all(state["torch_cuda"])
+        torch.cuda.set_rng_state_all([value.cpu() for value in state["torch_cuda"]])
     available = generators or {}
     if set(state.get("generators", {})) != set(available):
         raise ValueError("checkpoint and runner generator names differ")

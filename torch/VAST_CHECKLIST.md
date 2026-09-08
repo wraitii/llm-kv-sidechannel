@@ -248,3 +248,48 @@ particular Vast host.
 Core rule: Vast is disposable compute plus temporary host storage. For the
 initial runs, this workstation's artifact directory is the durable source of
 truth.
+
+## Test-flight record: 2026-09-08
+
+Instance `50283926` used offer `46691993` on machine `140868` in South Korea:
+an RTX 5090 with 32,607 MiB VRAM, driver 595.71.05, CUDA 13.2 capability,
+61 GiB system RAM, and a 100 GB instance disk. The working image was
+`vastai/base-image:cuda-12.8.1-auto`; the automatic base-image tag had no image
+compatible with compute capability 12.0 and CUDA 13.2. The environment used
+commit `72655190c8c8a72dec886784a3eadcff3dca9445`, Python 3.12.3, Torch
+2.14.0+cu130, Transformers 5.16.1, PEFT 0.20.0, and cuDNN 9.24.
+
+The locked suite passed (24 tests on the original commit; 25 locally after the
+CUDA resume regression test was added). The pinned Qwen3-1.7B-Base snapshot at
+revision `ea980cb0a6c2ae4b936e82123acc929f1cec04c1` matched SHA-256
+`6df85b39330e5a425ee36253d0f894e4387e4f0a15b9c53cb467d668e6b3a841`.
+Full-attention and fixed-SWA BF16 LoRA optimizer steps passed. Soundness passed
+in FP32 at `atol=2e-4`, with cache/full and no-eviction restart maximum errors
+of `1.4495849609375e-4`, native-SWA/dense error `7.796287536621094e-5`, and 24
+tokens actually evicted. BF16 is appropriate for training but produced large
+false-positive semantic comparison errors across differing kernel shapes.
+
+Full-attention capacity at microbatch 1 and effective batch 16 was:
+
+| Context | Mean optimizer step | Tokens/s | Peak reserved VRAM |
+| ---: | ---: | ---: | ---: |
+| 1,024 | 1.61 s | 10,194 | 11.17 GB |
+| 2,048 | 3.47 s | 9,441 | 17.50 GB |
+| 3,072 | 5.80 s | 8,478 | 24.05 GB |
+| 4,096 | 9.43 s | 6,947 | 30.71 GB |
+
+At 2K, microbatch 2 passed but reserved 30.74 GB and microbatch 4 OOMed. At
+4K, microbatch 1 passed five measured updates after warmup but retained only
+about 8.8% reserved-memory headroom. Both 6K and 8K OOMed. Native causal,
+forced Flash SDPA, answer-tail logits, and native SWA-1024 probes did not make
+8K fit with this locked stack. Use 4K only as an upper-edge setting and prefer
+3K when the checklist's 10% headroom is required.
+
+The checkpoint test found that CUDA RNG tensors loaded with `map_location=cuda`
+must be moved back to CPU before `torch.cuda.set_rng_state_all`. After that fix,
+the resumed step, micro-step, tokens, loss, and gradient norm matched the
+uninterrupted run exactly. Preserve/restart evaluation completed for full
+attention and SWA-256. Reports, configs, manifest, metrics, and checkpoints were
+checksum-recovered under `artifacts/vast/instances/50283926/qualification-50283926/`.
+Stopping changed Vast status to `exited`, retained the 100 GB disk, and made SSH
+refuse connections as expected.

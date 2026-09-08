@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from llmpr_torch.checkpointing import load_checkpoint, save_checkpoint
+from llmpr_torch.checkpointing import load_checkpoint, restore_rng_state, save_checkpoint
 
 
 def _objects(seed=3):
@@ -58,3 +58,25 @@ def test_resume_rejects_changed_config(tmp_path: Path):
         load_checkpoint(tmp_path / "checkpoint.pt", model=model, optimizer=optimizer,
                         scheduler=scheduler, scaler=None, expected_config={"a": 2},
                         generators={"sampler": sampler})
+
+
+def test_restore_cuda_rng_state_moves_loaded_tensors_to_cpu(monkeypatch):
+    class LoadedCudaState:
+        def cpu(self):
+            return torch.empty(4, dtype=torch.uint8)
+
+    state = {
+        "python": __import__("random").getstate(),
+        "numpy": np.random.get_state(),
+        "torch_cpu": torch.get_rng_state(),
+        "torch_cuda": [LoadedCudaState()],
+        "generators": {},
+    }
+    restored = []
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(torch.cuda, "set_rng_state_all", restored.extend)
+
+    restore_rng_state(state)
+
+    assert len(restored) == 1
+    assert restored[0].device.type == "cpu"

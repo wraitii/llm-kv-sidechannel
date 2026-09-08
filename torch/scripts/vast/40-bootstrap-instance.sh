@@ -16,8 +16,11 @@ git ls-remote "$repo_url" | awk -v commit="$commit" \
   die "commit $commit is not advertised by the public remote; push it first"
 
 read -r ssh_host ssh_port <<<"$(vast_ssh_parts "$instance_id")"
+known_hosts="$VAST_ARTIFACTS_DIR/known_hosts"
+mkdir -p "$(dirname "$known_hosts")"
 printf 'Bootstrapping instance %s at commit %s\n' "$instance_id" "$commit"
-ssh -p "$ssh_port" "$ssh_host" bash -s -- "$repo_url" "$remote_repo" "$commit" <<'REMOTE'
+ssh -o UserKnownHostsFile="$known_hosts" -o StrictHostKeyChecking=accept-new \
+  -p "$ssh_port" "$ssh_host" bash -s -- "$repo_url" "$remote_repo" "$commit" <<'REMOTE'
 set -euo pipefail
 repo_url="$1"
 repo_dir="$2"
