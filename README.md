@@ -8,6 +8,14 @@ The central comparison is whether ordinary-token representations can serve as
 useful memory when training and inference restrict direct access to old tokens.
 Dedicated carrier tokens are an optional experimental condition.
 
+## Qwen/PyTorch port
+
+The CUDA-oriented Qwen3-1.7B work lives in [`torch/`](torch/README.md) with its
+own Python environment and lockfile. It targets full attention, fixed and
+variable SWA, streaming-log retention, and optionally learned scored retention;
+Memento masks and carrier tokens are not part of that port. The original MLX
+implementation remains the reference for intervention semantics.
+
 ## Implemented conditions
 
 - **Full causal attention**, including a continued-finetuning control.

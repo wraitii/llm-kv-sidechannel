@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llmpr-torch"
+version = "0.1.0"
+description = "PyTorch/Qwen experiments for contextual KV memory"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "numpy==2.5.3",
+  "peft==0.20.0",
+  "torch==2.14.0",
+  "transformers>=5.10,<6",
+]
+
+[project.optional-dependencies]
+data = ["datasets>=4,<5"]
+dev = ["pytest==9.1.1"]
+
+[project.scripts]
+llmpr-qwen-smoke = "llmpr_torch.smoke:main"
+llmpr-prepare-state = "llmpr_torch.prepare_state:main"
+llmpr-train = "llmpr_torch.training:main"
+llmpr-evaluate = "llmpr_torch.evaluation:main"
+llmpr-soundness = "llmpr_torch.soundness:main"
+llmpr-capacity = "llmpr_torch.capacity:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llmpr_torch"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -19,6 +19,13 @@ dist/
 .idea/
 .vscode/
 
+# CUDA/PyTorch subproject environments and downloaded model caches.
+torch/.venv/
+torch/.cache/
+torch/outputs/
+torch/models/
+torch/data/
+
 # Reproducible derived artifacts, intentionally not versioned.
 data/**
 !data/**/

@@ -1,0 +1,8 @@
+{
+  "Qwen3-1.7B-Base": {
+    "repo_id": "Qwen/Qwen3-1.7B-Base",
+    "revision": "ea980cb0a6c2ae4b936e82123acc929f1cec04c1",
+    "local_dir": "models/Qwen3-1.7B-Base",
+    "model_safetensors_sha256": "6df85b39330e5a425ee36253d0f894e4387e4f0a15b9c53cb467d668e6b3a841"
+  }
+}
