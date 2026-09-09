@@ -109,6 +109,13 @@ loss over the prompt: `answer_loss + prompt_loss_weight * prompt_lm_loss`.
 The prompt is overwhelmingly untouched PG-19 text, and both components are
 logged separately. Measure clean-text regression on the raw held-out books:
 
+For a variable-SWA generalization run, set `full_attention_lm_probability` to
+route that fraction of microbatches to prompt-only LM training under full
+attention. The remaining microbatches use the configured attention policy and
+answer-only task loss; full-attention batches never receive task loss. Optional
+`full_attention_lm_weight` scales those LM-only updates (default `1.0`). Do not
+combine this routing mode with `prompt_loss_weight`.
+
 ```bash
 uv run --locked llmpr-evaluate-lm \
   --model models/Qwen3-1.7B-Base \

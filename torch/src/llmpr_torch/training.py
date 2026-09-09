@@ -34,6 +34,14 @@ def load_config(path: Path) -> dict:
         raise ValueError("steps, batch_size, and grad_accum must be positive")
     if float(config.get("prompt_loss_weight", 0.0)) < 0:
         raise ValueError("prompt_loss_weight must be nonnegative")
+    full_lm_probability = float(config.get("full_attention_lm_probability", 0.0))
+    if not 0.0 <= full_lm_probability <= 1.0:
+        raise ValueError("full_attention_lm_probability must be between zero and one")
+    if float(config.get("full_attention_lm_weight", 1.0)) < 0:
+        raise ValueError("full_attention_lm_weight must be nonnegative")
+    if full_lm_probability and config.get("prompt_loss_weight", 0.0):
+        raise ValueError(
+            "prompt_loss_weight and full_attention_lm_probability are mutually exclusive")
     return config
 
 
@@ -58,6 +66,22 @@ def mixed_causal_loss(
     prompt_loss = token_losses[prompt_mask].mean()
     combined = answer_loss + float(prompt_loss_weight) * prompt_loss
     return combined, answer_loss, prompt_loss
+
+
+def prompt_causal_loss(
+    logits: torch.Tensor,
+    input_ids: torch.Tensor,
+    prompt_lengths: list[int],
+) -> torch.Tensor:
+    """Average next-token loss only over tokens belonging to the prompt."""
+    shift_logits = logits[:, :-1].float()
+    targets = input_ids[:, 1:]
+    prompt_mask = torch.zeros_like(targets, dtype=torch.bool)
+    for row, prompt_length in enumerate(prompt_lengths):
+        prompt_mask[row, :max(0, prompt_length - 1)] = True
+    token_losses = F.cross_entropy(
+        shift_logits.transpose(1, 2), targets, reduction="none")
+    return token_losses[prompt_mask].mean()
 
 
 def make_mask(rows: list[TokenizedEpisode], policy: Policy, device, dtype,
@@ -179,28 +203,44 @@ def main() -> None:
             torch.cuda.reset_peak_memory_stats(device)
         optimizer.zero_grad(set_to_none=True)
         accumulated = answer_accumulated = prompt_accumulated = 0.0
+        task_micro_steps = prompt_lm_micro_steps = full_lm_micro_steps = 0
         context_tokens = answer_tokens = 0
         for _ in range(int(config["grad_accum"])):
             indices = torch.randint(len(encoded), (int(config["batch_size"]),), generator=sampler).tolist()
             batch = [encoded[index] for index in indices]
+            full_lm_probability = float(config.get("full_attention_lm_probability", 0.0))
+            full_lm_update = bool(full_lm_probability and
+                                  torch.rand((), generator=sampler).item() < full_lm_probability)
+            active_policy = FullAttention() if full_lm_update else policy
             windows = None
-            if isinstance(policy, VariableSWA):
+            if isinstance(active_policy, VariableSWA):
                 windows = torch.randint(
-                    policy.minimum, policy.maximum + 1, (len(batch),),
+                    active_policy.minimum, active_policy.maximum + 1, (len(batch),),
                     generator=sampler).tolist()
             input_ids, labels, mask = collate(
-                batch, policy, device, dtype, windows=windows)
+                batch, active_policy, device, dtype, windows=windows)
             prompt_loss_weight = float(config.get("prompt_loss_weight", 0.0))
-            if prompt_loss_weight:
+            if full_lm_update:
+                output = model(input_ids=input_ids, attention_mask=mask, use_cache=False)
+                prompt_loss = prompt_causal_loss(
+                    output.logits, input_ids, [row.prompt_length for row in batch])
+                loss = float(config.get("full_attention_lm_weight", 1.0)) * prompt_loss
+                answer_loss = loss.detach().new_zeros(())
+                full_lm_micro_steps += 1
+                prompt_lm_micro_steps += 1
+            elif prompt_loss_weight:
                 output = model(input_ids=input_ids, attention_mask=mask, use_cache=False)
                 loss, answer_loss, prompt_loss = mixed_causal_loss(
                     output.logits, input_ids, labels,
                     [row.prompt_length for row in batch], prompt_loss_weight)
+                prompt_lm_micro_steps += 1
             else:
                 loss = answer_loss = model(
                     input_ids=input_ids, labels=labels,
                     attention_mask=mask, use_cache=False).loss
                 prompt_loss = loss.detach().new_zeros(())
+            if not full_lm_update:
+                task_micro_steps += 1
             if not torch.isfinite(loss):
                 raise FloatingPointError(f"non-finite loss at step {step}")
             (loss / int(config["grad_accum"])).backward()
@@ -208,9 +248,10 @@ def main() -> None:
             answer_accumulated += float(answer_loss.detach().cpu()) / int(config["grad_accum"])
             prompt_accumulated += float(prompt_loss.detach().cpu()) / int(config["grad_accum"])
             batch_answer_tokens = int((labels != -100).sum())
-            answer_tokens += batch_answer_tokens
+            if not full_lm_update:
+                answer_tokens += batch_answer_tokens
+                tokens_seen += batch_answer_tokens
             context_tokens += sum(len(row.input_ids) for row in batch)
-            tokens_seen += batch_answer_tokens
             micro_step += 1
         grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), float(config.get("max_grad_norm", 1.0)))
         if not torch.isfinite(grad_norm):
@@ -221,10 +262,23 @@ def main() -> None:
             torch.cuda.synchronize(device)
         step_s = time.perf_counter() - step_started
         eta_s = step_s * (final_step - step)
+        accumulation_steps = int(config["grad_accum"])
+        reported_answer_loss = (
+            answer_accumulated * accumulation_steps / task_micro_steps
+            if task_micro_steps else 0.0)
+        reported_prompt_loss = (
+            prompt_accumulated * accumulation_steps / prompt_lm_micro_steps
+            if prompt_lm_micro_steps else 0.0)
         record = {"event": "train", "step": step, "micro_step": micro_step,
-                  "loss": accumulated, "answer_loss": answer_accumulated,
-                  "prompt_lm_loss": prompt_accumulated,
+                  "loss": accumulated, "answer_loss": reported_answer_loss,
+                  "prompt_lm_loss": reported_prompt_loss,
                   "prompt_loss_weight": float(config.get("prompt_loss_weight", 0.0)),
+                  "full_attention_lm_probability": float(
+                      config.get("full_attention_lm_probability", 0.0)),
+                  "full_attention_lm_weight": float(config.get("full_attention_lm_weight", 1.0)),
+                  "task_micro_steps": task_micro_steps,
+                  "prompt_lm_micro_steps": prompt_lm_micro_steps,
+                  "full_attention_lm_micro_steps": full_lm_micro_steps,
                   "grad_norm": float(grad_norm),
                   "learning_rate": scheduler.get_last_lr()[0], "tokens_seen": tokens_seen,
                   "context_tokens": context_tokens, "answer_tokens": answer_tokens,

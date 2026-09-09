@@ -1,10 +1,10 @@
-import math
 import json
+import math
 
 import pytest
 import torch
 
-from llmpr_torch.training import mixed_causal_loss
+from llmpr_torch.training import load_config, mixed_causal_loss, prompt_causal_loss
 from llmpr_torch.lm_evaluation import clean_windows
 
 
@@ -22,6 +22,35 @@ def test_mixed_causal_loss_averages_prompt_and_answer_separately():
     assert combined.item() == pytest.approx(1.25 * expected)
     combined.backward()
     assert logits.grad is not None
+
+
+def test_prompt_causal_loss_excludes_answer_tokens():
+    logits = torch.zeros((1, 5, 7), requires_grad=True)
+    input_ids = torch.tensor([[0, 1, 2, 3, 4]])
+
+    loss = prompt_causal_loss(logits, input_ids, [3])
+
+    assert loss.item() == pytest.approx(math.log(7))
+    loss.backward()
+    assert logits.grad is not None
+    assert torch.count_nonzero(logits.grad[:, 2:]).item() == 0
+
+
+def test_full_attention_lm_routing_config_validation(tmp_path):
+    base = {
+        "model": "model", "data": "data", "run_dir": "run", "steps": 1,
+        "learning_rate": 1e-4, "batch_size": 1, "grad_accum": 1,
+        "policy": "variable-swa:64-128",
+    }
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({**base, "full_attention_lm_probability": 1.1}))
+    with pytest.raises(ValueError, match="between zero and one"):
+        load_config(path)
+
+    path.write_text(json.dumps({
+        **base, "full_attention_lm_probability": 0.05, "prompt_loss_weight": 0.1}))
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        load_config(path)
 
 
 class WordTokenizer:
