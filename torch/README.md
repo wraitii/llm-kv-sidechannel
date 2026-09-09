@@ -104,6 +104,22 @@ Training currently uses answer-only loss on the injected tasks. The raw book
 files make a future ordinary-text NLL evaluator possible, but ordinary PG-19
 language-model mixing and clean-text NLL reporting are not implemented yet.
 
+Set `prompt_loss_weight` to add an independently token-averaged next-token
+loss over the prompt: `answer_loss + prompt_loss_weight * prompt_lm_loss`.
+The prompt is overwhelmingly untouched PG-19 text, and both components are
+logged separately. Measure clean-text regression on the raw held-out books:
+
+```bash
+uv run --locked llmpr-evaluate-lm \
+  --model models/Qwen3-1.7B-Base \
+  --data data/pg19-3800-640/pg19-test.jsonl \
+  --checkpoint outputs/RUN/checkpoint-0000050.pt \
+  --device cuda --length 3800 --books 32 --policies full
+```
+
+Omit `--checkpoint` for the frozen base-model baseline. The evaluator selects
+the same deterministic interior window from each book for every checkpoint.
+
 During training, `metrics.jsonl` records loss, gradient norm, learning rate,
 step time, context- and answer-token throughput, peak allocated/reserved VRAM,
 and ETA. A background sampler writes GPU utilization, VRAM, temperature, power,

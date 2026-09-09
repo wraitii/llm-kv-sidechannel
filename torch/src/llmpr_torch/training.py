@@ -8,6 +8,7 @@ import time
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .checkpointing import latest_checkpoint, load_checkpoint, save_checkpoint
@@ -31,7 +32,32 @@ def load_config(path: Path) -> dict:
         raise ValueError(f"training config is missing: {sorted(missing)}")
     if min(config["steps"], config["batch_size"], config["grad_accum"]) < 1:
         raise ValueError("steps, batch_size, and grad_accum must be positive")
+    if float(config.get("prompt_loss_weight", 0.0)) < 0:
+        raise ValueError("prompt_loss_weight must be nonnegative")
     return config
+
+
+def mixed_causal_loss(
+    logits: torch.Tensor,
+    input_ids: torch.Tensor,
+    labels: torch.Tensor,
+    prompt_lengths: list[int],
+    prompt_loss_weight: float,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Combine independently averaged answer and prompt next-token losses."""
+    shift_logits = logits[:, :-1].float()
+    targets = input_ids[:, 1:]
+    answer_mask = labels[:, 1:] != -100
+    prompt_mask = torch.zeros_like(answer_mask)
+    for row, prompt_length in enumerate(prompt_lengths):
+        # targets[:, i] is the original input token at position i + 1.
+        prompt_mask[row, :max(0, prompt_length - 1)] = True
+    token_losses = F.cross_entropy(
+        shift_logits.transpose(1, 2), targets, reduction="none")
+    answer_loss = token_losses[answer_mask].mean()
+    prompt_loss = token_losses[prompt_mask].mean()
+    combined = answer_loss + float(prompt_loss_weight) * prompt_loss
+    return combined, answer_loss, prompt_loss
 
 
 def make_mask(rows: list[TokenizedEpisode], policy: Policy, device, dtype,
@@ -152,7 +178,7 @@ def main() -> None:
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(device)
         optimizer.zero_grad(set_to_none=True)
-        accumulated = 0.0
+        accumulated = answer_accumulated = prompt_accumulated = 0.0
         context_tokens = answer_tokens = 0
         for _ in range(int(config["grad_accum"])):
             indices = torch.randint(len(encoded), (int(config["batch_size"]),), generator=sampler).tolist()
@@ -164,11 +190,23 @@ def main() -> None:
                     generator=sampler).tolist()
             input_ids, labels, mask = collate(
                 batch, policy, device, dtype, windows=windows)
-            loss = model(input_ids=input_ids, labels=labels, attention_mask=mask, use_cache=False).loss
+            prompt_loss_weight = float(config.get("prompt_loss_weight", 0.0))
+            if prompt_loss_weight:
+                output = model(input_ids=input_ids, attention_mask=mask, use_cache=False)
+                loss, answer_loss, prompt_loss = mixed_causal_loss(
+                    output.logits, input_ids, labels,
+                    [row.prompt_length for row in batch], prompt_loss_weight)
+            else:
+                loss = answer_loss = model(
+                    input_ids=input_ids, labels=labels,
+                    attention_mask=mask, use_cache=False).loss
+                prompt_loss = loss.detach().new_zeros(())
             if not torch.isfinite(loss):
                 raise FloatingPointError(f"non-finite loss at step {step}")
             (loss / int(config["grad_accum"])).backward()
             accumulated += float(loss.detach().cpu()) / int(config["grad_accum"])
+            answer_accumulated += float(answer_loss.detach().cpu()) / int(config["grad_accum"])
+            prompt_accumulated += float(prompt_loss.detach().cpu()) / int(config["grad_accum"])
             batch_answer_tokens = int((labels != -100).sum())
             answer_tokens += batch_answer_tokens
             context_tokens += sum(len(row.input_ids) for row in batch)
@@ -184,7 +222,10 @@ def main() -> None:
         step_s = time.perf_counter() - step_started
         eta_s = step_s * (final_step - step)
         record = {"event": "train", "step": step, "micro_step": micro_step,
-                  "loss": accumulated, "grad_norm": float(grad_norm),
+                  "loss": accumulated, "answer_loss": answer_accumulated,
+                  "prompt_lm_loss": prompt_accumulated,
+                  "prompt_loss_weight": float(config.get("prompt_loss_weight", 0.0)),
+                  "grad_norm": float(grad_norm),
                   "learning_rate": scheduler.get_last_lr()[0], "tokens_seen": tokens_seen,
                   "context_tokens": context_tokens, "answer_tokens": answer_tokens,
                   "step_s": step_s,
