@@ -85,7 +85,7 @@ rerunning it. The repository ignores `torch/data/` and `torch/outputs/`.
 
 ### Train and evaluate
 
-The checked-in configs are the five current 3.8K experiment arms. They expect
+The checked-in configs are the current 3.8K experiment arms. They expect
 the generated dataset at `data/pg19-3800-v2` and write to distinct directories
 under `outputs/`:
 
@@ -99,6 +99,13 @@ uv run --locked llmpr-evaluate \
   --policies full,swa:512,swa:256 \
   --restart-modes preserve,restart:answer,restart:512,restart:256
 ```
+
+For the short three-arm run, use `full-task.json` (100 steps, task-only full
+attention), `fixed-swa-lm-task.json` (500 steps, SWA-512), and
+`variable-swa-lm-task.json` (500 steps, variable SWA-128--800). The constrained
+arms both use the 80% constrained prompt LM / 15% task / 5% full-attention
+prompt LM routing mix. Evaluate only fixed SWA-512 and SWA-128; variable SWA is
+a training distribution, not an evaluation policy.
 
 Set `task_probability` and `full_attention_lm_probability` to route updates
 between answer-only probe loss, full-attention prompt LM, and constrained-policy
