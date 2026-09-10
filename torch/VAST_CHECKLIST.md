@@ -125,8 +125,8 @@ in both the config filename and `run_dir`; never reuse an output directory.
    sha256sum data/pg19-pilot-1k/{manifest,train,validation,test}.json*
    ```
 
-4. Copy `configs/pg19-pilot-1k.example.json` to a unique config filename and
-   change `run_dir` to `outputs/$RUN_ID`. Confirm `steps=500`, `batch_size=1`,
+4. Make a temporary pilot copy of `configs/full-lm.json` and change its data,
+   run directory, length, and schedule for this qualification only. Confirm `steps=500`, `batch_size=1`,
    `grad_accum=16`, `save_every=100`, and `monitor_interval_s=10`.
 5. Train to step 200, inspect and evaluate that checkpoint, then resume to 500:
 

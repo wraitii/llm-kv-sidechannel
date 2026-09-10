@@ -51,7 +51,8 @@ def task_loss_aggregates(
     return results
 
 
-def paired_task_aggregates(episodes: Sequence[StateEpisode], scores: Sequence[tuple[float, float]],
+def paired_task_aggregates(episodes: Sequence[StateEpisode],
+                           scores: Sequence[tuple[float, float, int]],
                            *, split_task_type: bool = False,
                            distance_buckets: tuple[int, ...] = ()) -> list[dict]:
     """Aggregate correct-versus-counterfactual answer NLL, excluding EOS."""
@@ -65,23 +66,31 @@ def paired_task_aggregates(episodes: Sequence[StateEpisode], scores: Sequence[tu
                 return f"{lower}-{upper}"
             lower = upper + 1
         return f"{lower}+"
-    groups = sorted({(episode.task_type if split_task_type else None, bucket(episode))
+    task_types = {episode.task_type for episode in episodes}
+    separate_tasks = split_task_type or len(task_types) > 1
+    groups = sorted({(episode.task_type if separate_tasks else next(iter(task_types)), bucket(episode))
                      for episode in episodes}, key=lambda item: str(item))
     results = []
     for task_type, distance_bucket in groups:
         selected = [score for episode, score in zip(episodes, scores)
                     if (task_type is None or episode.task_type == task_type)
                     and bucket(episode) == distance_bucket]
-        margins = [alternate - correct for correct, alternate in selected]
-        result = {
-            "examples": len(selected),
-            "correct_answer_nll": sum(item[0] for item in selected) / max(1, len(selected)),
-            "counterfactual_answer_nll": sum(item[1] for item in selected) / max(1, len(selected)),
-            "mean_nll_margin": sum(margins) / max(1, len(margins)),
-            "pairwise_accuracy": sum(margin > 0 for margin in margins) / max(1, len(margins)),
-        }
-        if task_type is not None:
-            result["task_type"] = task_type
+        tokens = sum(item[2] for item in selected)
+        result = {"examples": len(selected), "answer_tokens": tokens, "task_type": task_type}
+        if task_type.startswith("passcode"):
+            result["answer_nll_per_token"] = (
+                sum(item[0] for item in selected) / max(1, tokens))
+        else:
+            margins = [(alternate - correct) / max(1, count)
+                       for correct, alternate, count in selected]
+            result.update({
+                "correct_answer_nll": sum(item[0] for item in selected) / max(1, tokens),
+                "counterfactual_answer_nll": (
+                    sum(item[1] for item in selected) / max(1, tokens)),
+                "mean_nll_margin": sum(margins) / max(1, len(margins)),
+                "pairwise_accuracy": (
+                    sum(margin > 0 for margin in margins) / max(1, len(margins))),
+            })
         if distance_bucket is not None:
             result["support_distance_bucket"] = distance_bucket
         results.append(result)
@@ -326,7 +335,7 @@ def main() -> None:
         episodes = episodes[:args.examples]
     for policy in policies:
         for mode in modes:
-            paired_scores: list[tuple[float, float]] = []
+            paired_scores: list[tuple[float, float, int]] = []
             alternatives = {episode.pair_id: [] for episode in episodes}
             for episode in episodes:
                 alternatives[episode.pair_id].append(episode.answer)
@@ -339,13 +348,17 @@ def main() -> None:
                 alternate_ids = tokenizer(choices[0], add_special_tokens=False)["input_ids"]
                 prompt_ids = encoded.input_ids[:encoded.prompt_length]
                 correct_ids = encoded.input_ids[encoded.prompt_length:-1]
-                def score(candidate_ids) -> float:
+                def score(candidate_ids) -> tuple[float, int]:
                     ids = (*prompt_ids, *candidate_ids, tokenizer.eos_token_id)
                     labels = (*([-100] * encoded.prompt_length), *candidate_ids, -100)
                     losses = token_nlls(
                         model, ids, labels, encoded.prompt_length, policy, mode, device)
-                    return sum(losses) / max(1, len(losses))
-                paired_scores.append((score(correct_ids), score(alternate_ids)))
+                    return sum(losses), len(losses)
+                correct_loss, correct_count = score(correct_ids)
+                alternate_loss, alternate_count = score(alternate_ids)
+                if correct_count != alternate_count:
+                    raise ValueError("counterfactual answers must have matching token lengths")
+                paired_scores.append((correct_loss, alternate_loss, correct_count))
             for aggregate in paired_task_aggregates(
                     episodes, paired_scores, split_task_type=args.split_task_type,
                     distance_buckets=tuple(int(value) for value in args.distance_buckets.split(",")

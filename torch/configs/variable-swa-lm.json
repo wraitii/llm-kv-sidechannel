@@ -1,8 +1,8 @@
 {
   "model": "models/Qwen3-1.7B-Base",
   "revision": "ea980cb0a6c2ae4b936e82123acc929f1cec04c1",
-  "data": "data/REPLACE_WITH_DATASET/train.jsonl",
-  "run_dir": "outputs/REPLACE_WITH_RUN_ID",
+  "data": "data/pg19-3800-v2/train.jsonl",
+  "run_dir": "outputs/variable-swa-lm",
   "policy": "variable-swa:256-512",
   "max_length": 3800,
   "steps": 200,

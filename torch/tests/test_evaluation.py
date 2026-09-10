@@ -55,7 +55,22 @@ def test_paired_aggregates_report_margin_and_accuracy_without_eos():
         StateEpisode("a", "p", "a", "", "x", (), "e", "b", task_type="state"),
         StateEpisode("b", "p", "b", "", "y", (), "e", "b", task_type="state"),
     ]
-    assert paired_task_aggregates(episodes, [(1.0, 3.0), (4.0, 2.0)])[0] == {
-        "examples": 2, "correct_answer_nll": 2.5, "counterfactual_answer_nll": 2.5,
+    assert paired_task_aggregates(episodes, [(1.0, 3.0, 1), (4.0, 2.0, 1)])[0] == {
+        "examples": 2, "answer_tokens": 2, "task_type": "state",
+        "correct_answer_nll": 2.5, "counterfactual_answer_nll": 2.5,
         "mean_nll_margin": 0.0, "pairwise_accuracy": 0.5,
+    }
+
+
+def test_passcodes_report_token_weighted_answer_nll_only():
+    episodes = [
+        StateEpisode("a", "p1", "a", "", "x", (), "e", "b",
+                     task_type="passcode_easy"),
+        StateEpisode("b", "p2", "a", "", "y", (), "e", "b",
+                     task_type="passcode_easy"),
+    ]
+    result = paired_task_aggregates(episodes, [(2.0, 9.0, 1), (6.0, 9.0, 3)])[0]
+    assert result == {
+        "examples": 2, "answer_tokens": 4, "task_type": "passcode_easy",
+        "answer_nll_per_token": 2.0,
     }

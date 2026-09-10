@@ -1,8 +1,8 @@
 {
   "model": "models/Qwen3-1.7B-Base",
   "revision": "ea980cb0a6c2ae4b936e82123acc929f1cec04c1",
-  "data": "data/REPLACE_WITH_DATASET/train.jsonl",
-  "run_dir": "outputs/REPLACE_WITH_RUN_ID",
+  "data": "data/pg19-3800-v2/train.jsonl",
+  "run_dir": "outputs/variable-swa-lm-task",
   "policy": "variable-swa:256-512",
   "max_length": 3800,
   "steps": 200,
@@ -14,9 +14,8 @@
   "max_grad_norm": 1.0,
   "lora_rank": 16,
   "lora_alpha": 32,
-  "task_probability": 0.1,
+  "task_probability": 0.15,
   "full_attention_lm_probability": 0.05,
-  "full_attention_lm_weight": 1.0,
   "save_every": 25,
   "monitor_interval_s": 10,
   "seed": 1337

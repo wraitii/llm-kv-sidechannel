@@ -85,26 +85,25 @@ rerunning it. The repository ignores `torch/data/` and `torch/outputs/`.
 
 ### Train and evaluate
 
-The checked-in `configs/pg19-local-1k.example.json` is a 20-step full-attention
-example matching `data/pg19-local-1k`. Copy it before adjusting paths, lengths,
-or policy:
+The checked-in configs are the five current 3.8K experiment arms. They expect
+the generated dataset at `data/pg19-3800-v2` and write to distinct directories
+under `outputs/`:
 
 ```bash
-cp configs/pg19-local-1k.example.json configs/pg19-local-1k.json
-uv run --locked llmpr-train --config configs/pg19-local-1k.json
+uv run --locked llmpr-train --config configs/variable-swa-lm-task.json
 uv run --locked llmpr-evaluate \
   --model models/Qwen3-1.7B-Base \
-  --checkpoint outputs/pg19-local-1k-full/checkpoint-0000020.pt \
-  --data data/pg19-local-1k/validation.jsonl \
-  --max-length 1024 \
+  --checkpoint outputs/variable-swa-lm-task/checkpoint-0000200.pt \
+  --data data/pg19-3800-v2/validation.jsonl \
+  --max-length 3800 \
   --policies full,swa:512,swa:256 \
-  --restart-modes preserve,restart:answer
+  --restart-modes preserve,restart:answer,restart:512,restart:256
 ```
 
 Set `task_probability` and `full_attention_lm_probability` to route updates
 between answer-only probe loss, full-attention prompt LM, and constrained-policy
-prompt LM (the remaining probability). For example, `0.10` and `0.05` produce
-the 10% task / 5% full LM / 85% constrained LM protocol.
+prompt LM (the remaining probability). Values `0.15` and `0.05` produce the
+15% task / 5% full LM / 80% constrained LM protocol.
 
 Set `prompt_loss_weight` to add an independently token-averaged next-token
 loss over the prompt: `answer_loss + prompt_loss_weight * prompt_lm_loss`.
@@ -137,11 +136,8 @@ CPU/RAM, process RSS, and disk space to `system.jsonl` every 10 seconds. Set
 disable system sampling. Non-finite loss or gradient norm stops training before
 another checkpoint can be written.
 
-For the first rented-machine lifecycle run, follow the copy-ready 1K/500-step
-run card in [`VAST_CHECKLIST.md`](VAST_CHECKLIST.md) and start from
-`configs/pg19-pilot-1k.example.json`. Do not use `full.example.json` unchanged;
-its paths are placeholders and its 4K setting is intentionally an upper-edge
-configuration for a 32 GB RTX 5090.
+For the rented-machine lifecycle, follow [`VAST_CHECKLIST.md`](VAST_CHECKLIST.md)
+and run capacity calibration before launching a checked-in config.
 
 ### End-to-end one-step smoke test
 
@@ -153,10 +149,12 @@ uv run llmpr-prepare-pg19 \
   --model models/Qwen3-1.7B-Base \
   --output-dir data/pg19-smoke \
   --context-lengths 512 \
-  --levels passcode,structured,natural \
+  --levels passcode_easy,passcode_hard,structured,natural \
   --train-books 1 --validation-books 1 --test-books 1
-uv run --locked llmpr-train --config configs/pg19-smoke.json --device auto
 ```
+
+For a local optimizer smoke test, make a temporary copy of the closest current
+config and change only its data path, run directory, length, and step count.
 
 ## Training and exact resume
 
@@ -166,8 +164,8 @@ when enabled, retention scorers), optimizer/scheduler state, all process RNGs,
 the named sampling generator, and counters. Resume rejects any config change.
 
 ```bash
-uv run --locked llmpr-train --config configs/full.json
-uv run --locked llmpr-train --config configs/full.json --resume
+uv run --locked llmpr-train --config configs/full-lm.json
+uv run --locked llmpr-train --config configs/full-lm.json --resume
 ```
 
 Policy strings are `full`, `swa:N`, `variable-swa:MIN-MAX`, `log:R+M`, and
