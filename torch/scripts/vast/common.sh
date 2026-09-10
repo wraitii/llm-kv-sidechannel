@@ -6,6 +6,7 @@ VAST_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TORCH_DIR="$(cd "$VAST_SCRIPT_DIR/../.." && pwd)"
 REPO_DIR="$(cd "$TORCH_DIR/.." && pwd)"
 VAST_ARTIFACTS_DIR="${VAST_ARTIFACTS_DIR:-$REPO_DIR/artifacts/vast}"
+VAST_DEFAULT_TEMPLATE_HASH="e329c8529093d3569158780534d3f689"
 
 die() {
   printf 'error: %s\n' "$*" >&2

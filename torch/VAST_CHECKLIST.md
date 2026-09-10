@@ -19,11 +19,15 @@ calling `20-create-instance.sh`.
 99-destroy-instance.sh INSTANCE          require recovery marker + confirmation
 ```
 
-The default image is `vastai/base-image:cuda-12.8.1-auto`, disk allocation
-is 100 GB, maximum all-in hourly price is $0.80, and minimum reliability is
-0.99. Override these locally with `VAST_IMAGE`, `VAST_STORAGE_GB`,
-`VAST_MAX_HOURLY`, or `VAST_MIN_RELIABILITY`. Do not put overrides containing
-secrets into committed files.
+The default template is `NVIDIA CUDA` at hash
+`e329c8529093d3569158780534d3f689`, using
+`vastai/base-image:cuda-12.8.1-cudnn-devel-ubuntu22.04-py312` with direct SSH.
+The disk allocation is 100 GB, maximum all-in hourly price is $0.80, and
+minimum reliability is 0.99. Override these locally with `VAST_TEMPLATE_HASH`,
+`VAST_STORAGE_GB`, `VAST_MAX_HOURLY`, or `VAST_MIN_RELIABILITY`. Do not put
+overrides containing secrets into committed files. The offer-search script
+loads the selected template and applies its compatibility requirements plus
+the project's stricter amd64 and CUDA 13 requirements.
 
 ## Before renting
 
