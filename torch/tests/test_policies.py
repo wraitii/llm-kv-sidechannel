@@ -30,3 +30,11 @@ def test_streaming_log_capacity_and_irreversibility():
         assert len(current) == min(length, policy.capacity)
         assert set(range(max(0, length - 4), length)) <= current
         previous = current
+
+
+def test_streaming_log_incremental_schedule_matches_known_reference():
+    policy = StreamingLog(4, 4)
+    schedule = list(policy.survivor_schedule(20))
+    assert schedule[11] == (0, 3, 6, 7, 8, 9, 10, 11)
+    assert schedule[19] == (0, 11, 14, 15, 16, 17, 18, 19)
+    assert schedule[-1] == policy.survivors(20)

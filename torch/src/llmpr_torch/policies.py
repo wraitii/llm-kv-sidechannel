@@ -62,23 +62,30 @@ class StreamingLog:
         """
         if length < 0:
             raise ValueError("length must be non-negative")
+        survivors: tuple[int, ...] = ()
+        for survivors in self.survivor_schedule(length):
+            pass
+        return survivors
+
+    def survivor_schedule(self, length: int):
+        """Yield survivors incrementally after each admitted position."""
+        if length < 0:
+            raise ValueError("length must be non-negative")
         memory: list[int] = []
         for query in range(length):
             newly_old = query - self.recent_tokens
-            if newly_old < 0:
-                continue
-            memory.append(newly_old)
-            if len(memory) <= self.memory_tokens:
-                continue
-            if self.memory_tokens == 1:
-                remove = 0
-            else:
-                ages = newly_old - np.asarray(memory, dtype=np.float64) + 1
-                gaps = np.log(ages[:-2]) - np.log(ages[2:])
-                remove = int(np.argmin(gaps)) + 1
-            memory.pop(remove)
-        recent = range(max(0, length - self.recent_tokens), length)
-        return tuple([*memory, *recent])
+            if newly_old >= 0:
+                memory.append(newly_old)
+                if len(memory) > self.memory_tokens:
+                    if self.memory_tokens == 1:
+                        remove = 0
+                    else:
+                        ages = newly_old - np.asarray(memory, dtype=np.float64) + 1
+                        gaps = np.log(ages[:-2]) - np.log(ages[2:])
+                        remove = int(np.argmin(gaps)) + 1
+                    memory.pop(remove)
+            recent = range(max(0, query + 1 - self.recent_tokens), query + 1)
+            yield tuple([*memory, *recent])
 
 
 def causal_visibility(length: int, windows: int | np.ndarray | None = None) -> np.ndarray:
@@ -102,8 +109,8 @@ def streaming_visibility(length: int, policy: StreamingLog) -> np.ndarray:
     if length < 1:
         raise ValueError("length must be positive")
     mask = np.zeros((1, length, length), dtype=np.bool_)
-    for query in range(length):
-        mask[0, query, list(policy.survivors(query + 1))] = True
+    for query, survivors in enumerate(policy.survivor_schedule(length)):
+        mask[0, query, list(survivors)] = True
     return mask
 
 

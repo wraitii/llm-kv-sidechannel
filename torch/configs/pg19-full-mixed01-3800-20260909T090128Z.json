@@ -1,0 +1,21 @@
+{
+  "model": "models/Qwen3-1.7B-Base",
+  "revision": "ea980cb0a6c2ae4b936e82123acc929f1cec04c1",
+  "data": "data/pg19-3800-640/train.jsonl",
+  "run_dir": "outputs/pg19-full-mixed01-3800-20260909T090128Z",
+  "policy": "full",
+  "max_length": 3800,
+  "steps": 50,
+  "batch_size": 1,
+  "grad_accum": 16,
+  "learning_rate": 0.0001,
+  "weight_decay": 0.01,
+  "warmup_steps": 20,
+  "max_grad_norm": 1.0,
+  "lora_rank": 16,
+  "lora_alpha": 32,
+  "prompt_loss_weight": 0.1,
+  "save_every": 5,
+  "monitor_interval_s": 10,
+  "seed": 1337
+}

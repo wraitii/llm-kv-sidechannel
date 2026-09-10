@@ -2,9 +2,10 @@ import numpy as np
 
 from llmpr_torch.evaluation import (
     RestartMode, last_restart_before, parse_policy, parse_restart,
-    policy_visibility, reconstruction_positions,
+    policy_visibility, reconstruction_positions, task_loss_aggregates,
 )
 from llmpr_torch.policies import FixedSWA, FullAttention, StreamingLog, VariableSWA
+from llmpr_torch.state_data import StateEpisode
 
 
 def test_restart_boundaries_and_reconstruction_support():
@@ -29,3 +30,21 @@ def test_policy_and_restart_parsing():
     assert parse_policy("variable-swa:64-1024") == VariableSWA(64, 1024)
     assert parse_policy("log:16+8") == StreamingLog(16, 8)
     assert parse_restart("restart:1").every == 1
+
+
+def test_task_loss_aggregates_can_split_task_types():
+    def episode(task_type: str) -> StateEpisode:
+        return StateEpisode(
+            example_id=task_type, pair_id="pair", variant="a", prompt="prompt",
+            answer="answer", events=(), query_entity="entity", background_id="book",
+            task_type=task_type,
+        )
+
+    episodes = [episode("state"), episode("passcode"), episode("state")]
+    split = task_loss_aggregates(episodes, [[1.0], [4.0, 6.0], [3.0]], split_task_type=True)
+    assert split == [
+        {"examples": 1, "answer_tokens": 2, "target_nll_per_token": 5.0,
+         "task_type": "passcode"},
+        {"examples": 2, "answer_tokens": 2, "target_nll_per_token": 2.0,
+         "task_type": "state"},
+    ]

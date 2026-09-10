@@ -5,7 +5,7 @@ import argparse
 from dataclasses import dataclass
 import json
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Sequence
 
 import numpy as np
 import torch
@@ -21,6 +21,34 @@ from .scored import ScoredRetention, enable_scored_retention
 
 
 Policy = FullAttention | FixedSWA | VariableSWA | StreamingLog | ScoredRetention
+
+
+def task_loss_aggregates(
+    episodes: Sequence[StateEpisode],
+    losses_by_episode: Sequence[Sequence[float]],
+    *,
+    split_task_type: bool = False,
+) -> list[dict]:
+    """Aggregate teacher-forced answer losses overall or by task type."""
+    if len(episodes) != len(losses_by_episode):
+        raise ValueError("episodes and losses must have the same length")
+    groups = sorted({episode.task_type for episode in episodes}) if split_task_type else [None]
+    results = []
+    for task_type in groups:
+        selected = [
+            losses for episode, losses in zip(episodes, losses_by_episode)
+            if task_type is None or episode.task_type == task_type
+        ]
+        losses = [loss for episode_losses in selected for loss in episode_losses]
+        result = {
+            "examples": len(selected),
+            "answer_tokens": len(losses),
+            "target_nll_per_token": sum(losses) / max(1, len(losses)),
+        }
+        if task_type is not None:
+            result["task_type"] = task_type
+        results.append(result)
+    return results
 
 
 def qwen_layers(model):
@@ -86,9 +114,14 @@ def policy_visibility(positions: tuple[int, ...], policy: Policy) -> np.ndarray:
     if isinstance(policy, FixedSWA):
         visible &= k > q - policy.window
     elif isinstance(policy, StreamingLog):
-        for row, query in enumerate(pos):
-            alive = set(policy.survivors(int(query) + 1))
-            visible[row] &= np.asarray([int(key) in alive for key in pos])
+        rows_by_query = {int(query): row for row, query in enumerate(pos)}
+        visible[:] = False
+        for query, alive in enumerate(policy.survivor_schedule(int(pos[-1]) + 1)):
+            row = rows_by_query.get(query)
+            if row is not None:
+                alive_positions = np.intersect1d(
+                    pos, np.asarray(alive, dtype=np.int64), assume_unique=True)
+                visible[row, np.searchsorted(pos, alive_positions)] = True
     return visible[None]
 
 
@@ -212,6 +245,8 @@ def main() -> None:
     parser.add_argument("--policies", default="full,swa:1024,swa:512,swa:256,swa:128,swa:64")
     parser.add_argument("--restart-modes", default="preserve,restart:answer,restart:32,restart:8,restart:1")
     parser.add_argument("--examples", type=int)
+    parser.add_argument("--split-task-type", action="store_true",
+                        help="emit separate aggregates for each task_type")
     args = parser.parse_args()
     device = select_device(args.device)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
@@ -248,18 +283,18 @@ def main() -> None:
         episodes = episodes[:args.examples]
     for policy in policies:
         for mode in modes:
-            losses: list[float] = []
+            losses_by_episode: list[list[float]] = []
             for episode in episodes:
                 encoded = tokenize_episode(tokenizer, episode, max_length=args.max_length)
-                losses.extend(token_nlls(
+                losses_by_episode.append(token_nlls(
                     model, encoded.input_ids, encoded.labels, encoded.prompt_length,
                     policy, mode, device))
-            print(json.dumps({
-                "policy": policy.kind, "policy_config": policy.__dict__,
-                "restart_mode": mode.name, "examples": len(episodes),
-                "answer_tokens": len(losses),
-                "target_nll_per_token": sum(losses) / max(1, len(losses)),
-            }), flush=True)
+            for aggregate in task_loss_aggregates(
+                    episodes, losses_by_episode, split_task_type=args.split_task_type):
+                print(json.dumps({
+                    "policy": policy.kind, "policy_config": policy.__dict__,
+                    "restart_mode": mode.name, **aggregate,
+                }), flush=True)
 
 
 if __name__ == "__main__":
