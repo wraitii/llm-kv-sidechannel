@@ -51,6 +51,43 @@ def task_loss_aggregates(
     return results
 
 
+def paired_task_aggregates(episodes: Sequence[StateEpisode], scores: Sequence[tuple[float, float]],
+                           *, split_task_type: bool = False,
+                           distance_buckets: tuple[int, ...] = ()) -> list[dict]:
+    """Aggregate correct-versus-counterfactual answer NLL, excluding EOS."""
+    def bucket(episode: StateEpisode) -> str | None:
+        if not distance_buckets or not episode.support_to_answer_tokens:
+            return None
+        distance = episode.support_to_answer_tokens[-1]
+        lower = 0
+        for upper in distance_buckets:
+            if distance <= upper:
+                return f"{lower}-{upper}"
+            lower = upper + 1
+        return f"{lower}+"
+    groups = sorted({(episode.task_type if split_task_type else None, bucket(episode))
+                     for episode in episodes}, key=lambda item: str(item))
+    results = []
+    for task_type, distance_bucket in groups:
+        selected = [score for episode, score in zip(episodes, scores)
+                    if (task_type is None or episode.task_type == task_type)
+                    and bucket(episode) == distance_bucket]
+        margins = [alternate - correct for correct, alternate in selected]
+        result = {
+            "examples": len(selected),
+            "correct_answer_nll": sum(item[0] for item in selected) / max(1, len(selected)),
+            "counterfactual_answer_nll": sum(item[1] for item in selected) / max(1, len(selected)),
+            "mean_nll_margin": sum(margins) / max(1, len(margins)),
+            "pairwise_accuracy": sum(margin > 0 for margin in margins) / max(1, len(margins)),
+        }
+        if task_type is not None:
+            result["task_type"] = task_type
+        if distance_bucket is not None:
+            result["support_distance_bucket"] = distance_bucket
+        results.append(result)
+    return results
+
+
 def qwen_layers(model):
     current = model
     for _ in range(5):
@@ -232,6 +269,7 @@ def load_episodes(path: Path) -> Iterable[StateEpisode]:
                 task_type=row.get("task_type", "state"),
                 difficulty=row.get("difficulty", "natural"),
                 context_length=row.get("context_length"),
+                support_to_answer_tokens=tuple(row.get("support_to_answer_tokens", ())),
             )
 
 
@@ -243,10 +281,15 @@ def main() -> None:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--max-length", type=int, default=8192)
     parser.add_argument("--policies", default="full,swa:1024,swa:512,swa:256,swa:128,swa:64")
-    parser.add_argument("--restart-modes", default="preserve,restart:answer,restart:32,restart:8,restart:1")
+    parser.add_argument(
+        "--restart-modes",
+        default="preserve,restart:answer,restart:512,restart:256,restart:128",
+    )
     parser.add_argument("--examples", type=int)
     parser.add_argument("--split-task-type", action="store_true",
                         help="emit separate aggregates for each task_type")
+    parser.add_argument("--distance-buckets", default="512,1024,2048",
+                        help="comma-separated inclusive support-distance upper bounds; empty disables")
     args = parser.parse_args()
     device = select_device(args.device)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
@@ -283,14 +326,30 @@ def main() -> None:
         episodes = episodes[:args.examples]
     for policy in policies:
         for mode in modes:
-            losses_by_episode: list[list[float]] = []
+            paired_scores: list[tuple[float, float]] = []
+            alternatives = {episode.pair_id: [] for episode in episodes}
+            for episode in episodes:
+                alternatives[episode.pair_id].append(episode.answer)
             for episode in episodes:
                 encoded = tokenize_episode(tokenizer, episode, max_length=args.max_length)
-                losses_by_episode.append(token_nlls(
-                    model, encoded.input_ids, encoded.labels, encoded.prompt_length,
-                    policy, mode, device))
-            for aggregate in task_loss_aggregates(
-                    episodes, losses_by_episode, split_task_type=args.split_task_type):
+                choices = [answer for answer in alternatives[episode.pair_id]
+                           if answer != episode.answer]
+                if len(choices) != 1:
+                    raise ValueError(f"pair {episode.pair_id!r} must contain two distinct answers")
+                alternate_ids = tokenizer(choices[0], add_special_tokens=False)["input_ids"]
+                prompt_ids = encoded.input_ids[:encoded.prompt_length]
+                correct_ids = encoded.input_ids[encoded.prompt_length:-1]
+                def score(candidate_ids) -> float:
+                    ids = (*prompt_ids, *candidate_ids, tokenizer.eos_token_id)
+                    labels = (*([-100] * encoded.prompt_length), *candidate_ids, -100)
+                    losses = token_nlls(
+                        model, ids, labels, encoded.prompt_length, policy, mode, device)
+                    return sum(losses) / max(1, len(losses))
+                paired_scores.append((score(correct_ids), score(alternate_ids)))
+            for aggregate in paired_task_aggregates(
+                    episodes, paired_scores, split_task_type=args.split_task_type,
+                    distance_buckets=tuple(int(value) for value in args.distance_buckets.split(",")
+                                           if value)):
                 print(json.dumps({
                     "policy": policy.kind, "policy_config": policy.__dict__,
                     "restart_mode": mode.name, **aggregate,

@@ -52,6 +52,11 @@ def test_full_attention_lm_routing_config_validation(tmp_path):
     with pytest.raises(ValueError, match="mutually exclusive"):
         load_config(path)
 
+    path.write_text(json.dumps({
+        **base, "full_attention_lm_probability": 0.1, "task_probability": 0.95}))
+    with pytest.raises(ValueError, match="sum to at most one"):
+        load_config(path)
+
 
 class WordTokenizer:
     def __call__(self, text, add_special_tokens=False):

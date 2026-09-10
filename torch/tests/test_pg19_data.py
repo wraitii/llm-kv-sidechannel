@@ -1,6 +1,8 @@
 import pytest
 
-from llmpr_torch.pg19_data import fit_pair, parse_lengths, select_books, stable_book_id
+from llmpr_torch.pg19_data import (
+    LEVELS, fit_pair, insertion_positions, parse_lengths, select_books, stable_book_id,
+)
 from llmpr_torch.state_data import make_counterfactual_pair, make_passcode_pair
 from llmpr_torch.tokenization import tokenize_episode, validate_counterfactual_pair
 
@@ -66,3 +68,23 @@ def test_length_parser():
     assert parse_lengths("1024,4096") == (1024, 4096)
     with pytest.raises(Exception):
         parse_lengths("128")
+
+
+def test_token_driven_probe_positions_cover_easy_hard_and_state():
+    tokenizer = CharacterTokenizer()
+    text = "x" * 3800
+    easy = insertion_positions(tokenizer, text, level="passcode_easy", seed=7)[0]
+    hard = insertion_positions(tokenizer, text, level="passcode_hard", seed=7)[0]
+    state = insertion_positions(tokenizer, text, level="natural", seed=7)
+    assert 3000 <= easy <= 3480
+    assert 380 <= hard <= 950
+    assert len(state) >= 6
+    assert all(300 <= right - left <= 600 for left, right in zip(state, state[1:]))
+
+
+@pytest.mark.parametrize("level", ["passcode_easy", "passcode_hard"])
+def test_passcode_levels_are_labeled_separately(level):
+    pair = fit_pair(CharacterTokenizer(), TEXT, background_id="book", seed=5,
+                    context_length=2048, builder=LEVELS[level], level=level)
+    assert {row.task_type for row in pair} == {level}
+    assert all(row.support_to_answer_tokens for row in pair)

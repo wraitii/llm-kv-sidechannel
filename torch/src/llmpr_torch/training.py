@@ -35,8 +35,11 @@ def load_config(path: Path) -> dict:
     if float(config.get("prompt_loss_weight", 0.0)) < 0:
         raise ValueError("prompt_loss_weight must be nonnegative")
     full_lm_probability = float(config.get("full_attention_lm_probability", 0.0))
+    task_probability = float(config.get("task_probability", 1.0 - full_lm_probability))
     if not 0.0 <= full_lm_probability <= 1.0:
         raise ValueError("full_attention_lm_probability must be between zero and one")
+    if not 0.0 <= task_probability <= 1.0 or task_probability + full_lm_probability > 1.0:
+        raise ValueError("task_probability and full_attention_lm_probability must be valid and sum to at most one")
     if float(config.get("full_attention_lm_weight", 1.0)) < 0:
         raise ValueError("full_attention_lm_weight must be nonnegative")
     if full_lm_probability and config.get("prompt_loss_weight", 0.0):
@@ -203,14 +206,16 @@ def main() -> None:
             torch.cuda.reset_peak_memory_stats(device)
         optimizer.zero_grad(set_to_none=True)
         accumulated = answer_accumulated = prompt_accumulated = 0.0
-        task_micro_steps = prompt_lm_micro_steps = full_lm_micro_steps = 0
-        context_tokens = answer_tokens = 0
+        task_micro_steps = prompt_lm_micro_steps = full_lm_micro_steps = constrained_lm_micro_steps = 0
+        context_tokens = answer_tokens = lm_tokens = 0
         for _ in range(int(config["grad_accum"])):
             indices = torch.randint(len(encoded), (int(config["batch_size"]),), generator=sampler).tolist()
             batch = [encoded[index] for index in indices]
             full_lm_probability = float(config.get("full_attention_lm_probability", 0.0))
-            full_lm_update = bool(full_lm_probability and
-                                  torch.rand((), generator=sampler).item() < full_lm_probability)
+            task_probability = float(config.get("task_probability", 1.0 - full_lm_probability))
+            route = torch.rand((), generator=sampler).item()
+            full_lm_update = route < full_lm_probability
+            task_update = full_lm_probability <= route < full_lm_probability + task_probability
             active_policy = FullAttention() if full_lm_update else policy
             windows = None
             if isinstance(active_policy, VariableSWA):
@@ -220,13 +225,17 @@ def main() -> None:
             input_ids, labels, mask = collate(
                 batch, active_policy, device, dtype, windows=windows)
             prompt_loss_weight = float(config.get("prompt_loss_weight", 0.0))
-            if full_lm_update:
+            if not task_update:
                 output = model(input_ids=input_ids, attention_mask=mask, use_cache=False)
                 prompt_loss = prompt_causal_loss(
                     output.logits, input_ids, [row.prompt_length for row in batch])
-                loss = float(config.get("full_attention_lm_weight", 1.0)) * prompt_loss
+                loss = ((float(config.get("full_attention_lm_weight", 1.0))
+                         if full_lm_update else 1.0) * prompt_loss)
                 answer_loss = loss.detach().new_zeros(())
-                full_lm_micro_steps += 1
+                if full_lm_update:
+                    full_lm_micro_steps += 1
+                else:
+                    constrained_lm_micro_steps += 1
                 prompt_lm_micro_steps += 1
             elif prompt_loss_weight:
                 output = model(input_ids=input_ids, attention_mask=mask, use_cache=False)
@@ -239,7 +248,7 @@ def main() -> None:
                     input_ids=input_ids, labels=labels,
                     attention_mask=mask, use_cache=False).loss
                 prompt_loss = loss.detach().new_zeros(())
-            if not full_lm_update:
+            if task_update:
                 task_micro_steps += 1
             if not torch.isfinite(loss):
                 raise FloatingPointError(f"non-finite loss at step {step}")
@@ -248,9 +257,13 @@ def main() -> None:
             answer_accumulated += float(answer_loss.detach().cpu()) / int(config["grad_accum"])
             prompt_accumulated += float(prompt_loss.detach().cpu()) / int(config["grad_accum"])
             batch_answer_tokens = int((labels != -100).sum())
-            if not full_lm_update:
+            if task_update:
                 answer_tokens += batch_answer_tokens
                 tokens_seen += batch_answer_tokens
+            else:
+                batch_lm_tokens = sum(max(0, row.prompt_length - 1) for row in batch)
+                lm_tokens += batch_lm_tokens
+                tokens_seen += batch_lm_tokens
             context_tokens += sum(len(row.input_ids) for row in batch)
             micro_step += 1
         grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), float(config.get("max_grad_norm", 1.0)))
@@ -275,13 +288,17 @@ def main() -> None:
                   "prompt_loss_weight": float(config.get("prompt_loss_weight", 0.0)),
                   "full_attention_lm_probability": float(
                       config.get("full_attention_lm_probability", 0.0)),
+                  "task_probability": float(config.get(
+                      "task_probability", 1.0 - config.get("full_attention_lm_probability", 0.0))),
                   "full_attention_lm_weight": float(config.get("full_attention_lm_weight", 1.0)),
                   "task_micro_steps": task_micro_steps,
                   "prompt_lm_micro_steps": prompt_lm_micro_steps,
                   "full_attention_lm_micro_steps": full_lm_micro_steps,
+                  "constrained_lm_micro_steps": constrained_lm_micro_steps,
                   "grad_norm": float(grad_norm),
                   "learning_rate": scheduler.get_last_lr()[0], "tokens_seen": tokens_seen,
                   "context_tokens": context_tokens, "answer_tokens": answer_tokens,
+                  "lm_tokens": lm_tokens,
                   "step_s": step_s,
                   "context_tokens_per_s": context_tokens / step_s,
                   "answer_tokens_per_s": answer_tokens / step_s,

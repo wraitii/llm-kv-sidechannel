@@ -2,7 +2,7 @@ import numpy as np
 
 from llmpr_torch.evaluation import (
     RestartMode, last_restart_before, parse_policy, parse_restart,
-    policy_visibility, reconstruction_positions, task_loss_aggregates,
+    paired_task_aggregates, policy_visibility, reconstruction_positions, task_loss_aggregates,
 )
 from llmpr_torch.policies import FixedSWA, FullAttention, StreamingLog, VariableSWA
 from llmpr_torch.state_data import StateEpisode
@@ -48,3 +48,14 @@ def test_task_loss_aggregates_can_split_task_types():
         {"examples": 2, "answer_tokens": 2, "target_nll_per_token": 2.0,
          "task_type": "state"},
     ]
+
+
+def test_paired_aggregates_report_margin_and_accuracy_without_eos():
+    episodes = [
+        StateEpisode("a", "p", "a", "", "x", (), "e", "b", task_type="state"),
+        StateEpisode("b", "p", "b", "", "y", (), "e", "b", task_type="state"),
+    ]
+    assert paired_task_aggregates(episodes, [(1.0, 3.0), (4.0, 2.0)])[0] == {
+        "examples": 2, "correct_answer_nll": 2.5, "counterfactual_answer_nll": 2.5,
+        "mean_nll_margin": 0.0, "pairwise_accuracy": 0.5,
+    }

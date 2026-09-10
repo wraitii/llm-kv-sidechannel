@@ -34,6 +34,7 @@ class StateEpisode:
     task_type: str = "state"
     difficulty: str = "natural"
     context_length: int | None = None
+    support_to_answer_tokens: tuple[int, ...] = ()
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -59,11 +60,13 @@ def make_counterfactual_pair(
     background_id: str,
     seed: int,
     natural: bool = True,
+    insertion_char_positions: tuple[int, ...] | None = None,
 ) -> tuple[StateEpisode, StateEpisode]:
-    """Create variants with the same suffix and different early final state.
+    """Create a compositional ownership chain with an early counterfactual state.
 
-    The two counterfactual values are distinct owner names. Exact token-length
-    matching is tokenizer-dependent and is checked after Qwen tokenization.
+    Later operations name only people, not objects or their owners, so the
+    answer cannot be copied from the final event. Exact token-length matching
+    is checked after Qwen tokenization.
     """
     if len(background) < 600:
         raise ValueError("background must contain at least 600 characters")
@@ -75,31 +78,73 @@ def make_counterfactual_pair(
     finals = list(owner_groups[int(rng.integers(len(owner_groups)))])
     if bool(rng.integers(2)):
         finals.reverse()
-    initial_choices = [owner for owner in OWNERS if owner not in finals]
-    initial = initial_choices[int(rng.integers(len(initial_choices)))]
-    cut1, cut2 = len(background) // 5, (len(background) * 2) // 5
-    prefix, middle, suffix = background[:cut1], background[cut1:cut2], background[cut2:]
+    if insertion_char_positions is None:
+        insertion_char_positions = tuple(range(
+            len(background) // 8, len(background), max(1, len(background) // 8)))
+    cuts = tuple(sorted(set(position for position in insertion_char_positions
+                            if 0 < position < len(background))))
+    if len(cuts) < 3:
+        raise ValueError("state probes require at least three insertion positions")
+    other_entity = next(item for item in ENTITIES if item != entity)
+    remaining_entities = [item for item in ENTITIES if item not in {entity, other_entity}]
+    remaining_owners = [owner for owner in OWNERS if owner not in finals]
+    swaps = []
+    previous = None
+    for _ in cuts[1:]:
+        choices = [(a, b) for i, a in enumerate(OWNERS) for b in OWNERS[i + 1:]
+                   if (a, b) != previous]
+        swap = choices[int(rng.integers(len(choices)))]
+        swaps.append(swap)
+        previous = swap
     pair_id = _stable_id(background_id, str(seed), entity,
                          "natural" if natural else "structured")
     episodes = []
     for variant, final_owner in zip(("a", "b"), finals, strict=True):
-        first = _event_text(entity, None, initial, natural)
-        update = _event_text(entity, initial, final_owner, natural)
-        chunks = [prefix.rstrip(), "\n\n", first, "\n\n", middle.strip(), "\n\n"]
-        first_start = sum(map(len, chunks[:2]))
-        first_end = first_start + len(first)
-        update_start = sum(map(len, chunks))
-        chunks.extend([update, "\n\n", suffix.lstrip()])
-        update_end = update_start + len(update)
+        alternate = finals[1] if final_owner == finals[0] else finals[0]
+        ownership = {
+            entity: final_owner, other_entity: alternate,
+            remaining_entities[0]: remaining_owners[0],
+            remaining_entities[1]: remaining_owners[1],
+        }
+        if natural:
+            first = (f"Before continuing, {final_owner} carried the {entity}, {alternate} "
+                     f"carried the {other_entity}, {remaining_owners[0]} carried the "
+                     f"{remaining_entities[0]}, and {remaining_owners[1]} carried the "
+                     f"{remaining_entities[1]}.")
+        else:
+            first = (f"Registry: {final_owner}={entity}; {alternate}={other_entity}; "
+                     f"{remaining_owners[0]}={remaining_entities[0]}; "
+                     f"{remaining_owners[1]}={remaining_entities[1]}.")
+        inserted = [first]
+        state_values = [ownership[entity]]
+        for left, right in swaps:
+            inserted.append(
+                f"Before continuing, {left} and {right} exchanged the objects they were carrying."
+                if natural else f"Registry operation: swap all holdings of {left} and {right}.")
+            for carried, owner in list(ownership.items()):
+                if owner == left:
+                    ownership[carried] = right
+                elif owner == right:
+                    ownership[carried] = left
+            state_values.append(ownership[entity])
+        chunks: list[str] = []
+        events = []
+        cursor = 0
+        for event_index, (cut, event_text, state_value) in enumerate(
+                zip(cuts, inserted, state_values, strict=True)):
+            chunks.extend([background[cursor:cut].strip(), "\n\n"])
+            event_start = sum(map(len, chunks))
+            chunks.extend([event_text, "\n\n"])
+            events.append(StateEvent(
+                entity if event_index == 0 else "possessions",
+                state_value, event_start, event_start + len(event_text), event_index))
+            cursor = cut
+        chunks.append(background[cursor:].lstrip())
         question = f"\n\nQuestion: Who currently possesses the {entity}?\nAnswer:"
         prompt = "".join(chunks) + question
-        events = (
-            StateEvent(entity, initial, first_start, first_end, 0),
-            StateEvent(entity, final_owner, update_start, update_end, 1),
-        )
         episodes.append(StateEpisode(
             example_id=f"{pair_id}-{variant}", pair_id=pair_id, variant=variant,
-            prompt=prompt, answer=final_owner, events=events,
+            prompt=prompt, answer=ownership[entity], events=tuple(events),
             query_entity=entity, background_id=background_id,
             task_type="state", difficulty="natural" if natural else "structured",
         ))
@@ -111,6 +156,8 @@ def make_passcode_pair(
     *,
     background_id: str,
     seed: int,
+    difficulty: str = "hard",
+    insertion_char_positions: tuple[int, ...] | None = None,
 ) -> tuple[StateEpisode, StateEpisode]:
     """Create a salient key-retrieval pair with a position-matched value."""
     if len(background) < 600:
@@ -124,9 +171,11 @@ def make_passcode_pair(
         value = "-".join(parts)
         if value not in values:
             values.append(value)
-    cut = len(background) // 4
+    if difficulty not in {"easy", "hard"}:
+        raise ValueError("passcode difficulty must be 'easy' or 'hard'")
+    cut = (insertion_char_positions or (len(background) // 4,))[0]
     prefix, suffix = background[:cut], background[cut:]
-    pair_id = _stable_id(background_id, str(seed), "passcode")
+    pair_id = _stable_id(background_id, str(seed), "passcode", difficulty)
     episodes = []
     for variant, value in zip(("a", "b"), values, strict=True):
         event = f"IMPORTANT PASSCODE: {value}. Keep this passcode for the question later."
@@ -139,7 +188,7 @@ def make_passcode_pair(
             events=(StateEvent("passcode", value, event_start,
                                event_start + len(event), 0),),
             query_entity="passcode", background_id=background_id,
-            task_type="passcode", difficulty="salient",
+            task_type=f"passcode_{difficulty}", difficulty=difficulty,
         ))
     return episodes[0], episodes[1]
 

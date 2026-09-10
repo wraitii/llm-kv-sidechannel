@@ -38,7 +38,8 @@ uv run llmpr-prepare-pg19 \
   --train-books 8 --validation-books 2 --test-books 2
 ```
 
-The default task levels are `passcode`, `structured`, and `natural`. Restrict
+The default task levels are `passcode_easy`, `passcode_hard`, `structured`, and
+`natural`. Restrict
 them with, for example, `--levels passcode,structured`. Every generated row is
 a complete prompt, answer, and EOS that fits within its declared token budget.
 Multiple budgets can be generated together:
@@ -100,9 +101,10 @@ uv run --locked llmpr-evaluate \
   --restart-modes preserve,restart:answer
 ```
 
-Training currently uses answer-only loss on the injected tasks. The raw book
-files make a future ordinary-text NLL evaluator possible, but ordinary PG-19
-language-model mixing and clean-text NLL reporting are not implemented yet.
+Set `task_probability` and `full_attention_lm_probability` to route updates
+between answer-only probe loss, full-attention prompt LM, and constrained-policy
+prompt LM (the remaining probability). For example, `0.10` and `0.05` produce
+the 10% task / 5% full LM / 85% constrained LM protocol.
 
 Set `prompt_loss_weight` to add an independently token-averaged next-token
 loss over the prompt: `answer_loss + prompt_loss_weight * prompt_lm_loss`.
@@ -111,8 +113,8 @@ logged separately. Measure clean-text regression on the raw held-out books:
 
 For a variable-SWA generalization run, set `full_attention_lm_probability` to
 route that fraction of microbatches to prompt-only LM training under full
-attention. The remaining microbatches use the configured attention policy and
-answer-only task loss; full-attention batches never receive task loss. Optional
+attention. Explicit `task_probability` routes task updates; the remainder uses
+prompt-only LM under the configured policy. Optional
 `full_attention_lm_weight` scales those LM-only updates (default `1.0`). Do not
 combine this routing mode with `prompt_loss_weight`.
 
@@ -181,7 +183,7 @@ uv run --locked llmpr-evaluate \
   --model models/Qwen3-1.7B-Base --checkpoint outputs/run/checkpoint-0001000.pt \
   --data data/state.jsonl \
   --policies full,swa:1024,swa:512,swa:256,swa:128,swa:64,log:128+128 \
-  --restart-modes preserve,restart:answer,restart:32,restart:8,restart:1
+  --restart-modes preserve,restart:answer,restart:512,restart:256,restart:128
 ```
 
 For a scored checkpoint, add its native `scored:R+M` policy. Its preserved pass

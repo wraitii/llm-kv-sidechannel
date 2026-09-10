@@ -15,10 +15,11 @@ def test_pair_is_deterministic_and_has_shared_suffix():
     a, b = first
     assert a.pair_id == b.pair_id
     assert a.answer != b.answer
-    assert a.prompt[a.events[-1].char_end:] == b.prompt[b.events[-1].char_end:]
+    assert a.prompt[a.events[0].char_end:] == b.prompt[b.events[0].char_end:]
     for episode in first:
-        event = episode.events[-1]
-        assert episode.answer in episode.prompt[event.char_start:event.char_end]
+        last_event = episode.events[-1]
+        assert episode.answer not in episode.prompt[last_event.char_start:last_event.char_end]
+        assert len(episode.events) >= 3
         assert json.loads(episode.to_json())["example_id"] == episode.example_id
 
 

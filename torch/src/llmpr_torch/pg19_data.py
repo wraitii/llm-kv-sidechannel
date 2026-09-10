@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from typing import Callable, Iterable
 
+import numpy as np
 from transformers import AutoTokenizer
 from huggingface_hub import HfApi
 
@@ -15,11 +16,37 @@ from .state_data import StateEpisode, make_counterfactual_pair, make_passcode_pa
 from .tokenization import tokenize_episode, validate_counterfactual_pair
 
 
+def _easy_passcode(text: str, **kwargs) -> tuple[StateEpisode, StateEpisode]:
+    return make_passcode_pair(text, difficulty="easy", **kwargs)
+
+
 LEVELS: dict[str, Callable[..., tuple[StateEpisode, StateEpisode]]] = {
-    "passcode": make_passcode_pair,
+    "passcode_easy": _easy_passcode,
+    "passcode_hard": make_passcode_pair,
     "structured": lambda text, **kw: make_counterfactual_pair(text, natural=False, **kw),
     "natural": lambda text, **kw: make_counterfactual_pair(text, natural=True, **kw),
 }
+
+
+def insertion_positions(tokenizer, background: str, *, level: str, seed: int) -> tuple[int, ...]:
+    """Choose token-driven injection points and return their character offsets."""
+    offsets = tokenizer(
+        background, add_special_tokens=False, return_offsets_mapping=True)["offset_mapping"]
+    length = len(offsets)
+    rng = np.random.Generator(np.random.PCG64(seed))
+    if level == "passcode_hard":
+        token_positions = [int(rng.integers(max(1, length // 10), max(2, length // 4 + 1)))]
+    elif level == "passcode_easy":
+        token_positions = [max(1, length - int(rng.integers(320, 801)))]
+    else:
+        token_positions = []
+        cursor = int(rng.integers(150, 301))
+        while cursor < length - 150:
+            token_positions.append(cursor)
+            cursor += int(rng.integers(300, 601))
+        while len(token_positions) < 3:
+            token_positions.append(max(1, (len(token_positions) + 1) * length // 4))
+    return tuple(offsets[min(position, length - 1)][0] for position in token_positions)
 
 
 def parse_lengths(value: str) -> tuple[int, ...]:
@@ -43,6 +70,7 @@ def fit_pair(
     seed: int,
     context_length: int,
     builder: Callable[..., tuple[StateEpisode, StateEpisode]],
+    level: str | None = None,
 ) -> tuple[StateEpisode, StateEpisode]:
     """Find the largest prefix whose complete prompt and answer fit the budget."""
     # Do not tokenize a multi-million-token book to construct one short row.
@@ -71,8 +99,12 @@ def fit_pair(
         # Deterministically seek a token-aligned counterfactual rather than
         # weakening the position-matched comparison.
         for attempt in range(64):
-            candidate = builder(background, background_id=background_id,
-                                seed=seed + attempt)
+            inferred_level = level or ("passcode_hard" if builder is make_passcode_pair else "state")
+            positions = insertion_positions(
+                tokenizer, background, level=inferred_level, seed=seed + attempt)
+            candidate = builder(
+                background, background_id=background_id, seed=seed + attempt,
+                insertion_char_positions=positions)
             candidate_encoded = [
                 tokenize_episode(tokenizer, row, max_length=10**12)
                 for row in candidate
@@ -88,7 +120,10 @@ def fit_pair(
         if max(len(row.input_ids) for row in encoded) > context_length:
             high = count - 1
         else:
-            best = pair
+            distances = [tuple(row.prompt_length - end - 1 for _, end in row.support_token_spans)
+                         for row in encoded]
+            best = tuple(replace(row, support_to_answer_tokens=distances[index])
+                         for index, row in enumerate(pair))
             low = count + 1
     if best is None:
         raise ValueError(f"could not fit a probe in {context_length} tokens")
@@ -116,7 +151,8 @@ def main() -> None:
                         help="HF dataset revision; pin a commit for archival runs")
     parser.add_argument("--cache-dir", type=Path)
     parser.add_argument("--context-lengths", type=parse_lengths, default=(1024,))
-    parser.add_argument("--levels", default="passcode,structured,natural")
+    parser.add_argument(
+        "--levels", default="passcode_easy,passcode_hard,structured,natural")
     parser.add_argument("--train-books", type=int, default=8)
     parser.add_argument("--validation-books", type=int, default=2)
     parser.add_argument("--test-books", type=int, default=2)
@@ -169,7 +205,7 @@ def main() -> None:
                         pair = fit_pair(
                             tokenizer, book["text"], background_id=book_id,
                             seed=args.seed + book_index * 1009 + level_index * 97 + length,
-                            context_length=length, builder=LEVELS[level],
+                            context_length=length, builder=LEVELS[level], level=level,
                         )
                         for row in pair:
                             episodes.write(row.to_json() + "\n")
