@@ -65,7 +65,25 @@ Commands and configuration details remain in `torch/README.md` and
   training, 400 validation, and 800 test rows. Split counts, paired phases,
   source strides, exact source-ID substitutions, and the 3K limit were checked
   successfully on the Vast instance.
-- A fresh Qwen base-model run using
-  `memento-fixed-copy-task45-memory45-lm10.json` is active. It saves every 25
-  steps; inspect windowed answer, memory, and ordinary-LM losses at those
-  boundaries and stop early if all relevant curves plateau.
+- The fresh Qwen base-model run used
+  `memento-fixed-copy-task45-memory45-lm10.json` and completed all 500 steps,
+  with checkpoints saved every 25 steps.
+
+## Fixed-copy result
+
+- The 500-step run completed. Over its final 25 steps, task NLL was 1.960,
+  copied-memory NLL 0.360, and ordinary prompt-LM NLL 4.458. The copy objective
+  was therefore learned strongly enough to test the proposed mechanism.
+- On a 32-row validation probe, token-weighted passcode NLL was 4.039 with
+  source-conditioned memory KVs preserved and 4.033 when restarting at the
+  answer by replaying only the explicit copied IDs. State pairwise accuracy was
+  25%/50% across the two preserve-mode distance buckets and showed no reliable
+  counterfactual signal.
+- This is a strong negative result for the tested construction: learning exact
+  strided copies did not induce useful task-state compression in contextualized
+  memory KVs. It is not a universal impossibility result for explicit
+  bottlenecks, task-aligned memory objectives, or other architectures.
+- Local deletion-safe archives are under
+  `artifacts/experiments/memento-fixed-copy-3000-2026-09-11` and
+  `artifacts/experiments/memento-fixed-sentinel-3000-2026-09-11`. The artifact
+  tree is intentionally ignored by Git.
