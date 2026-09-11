@@ -185,7 +185,12 @@ loss over the prompt: `answer_loss + prompt_loss_weight * prompt_lm_loss`.
 The prompt is overwhelmingly untouched PG-19 text, and both components are
 logged separately. Alternatively, set `prompt_loss_fraction` to a normalized
 mixture: `(1 - fraction) * answer_loss + fraction * prompt_lm_loss`. Do not set
-both controls. Measure clean-text regression on the raw held-out books:
+both controls. For copied-memory datasets, `memory_loss_fraction` independently
+averages the copied targets after each sentinel and removes the complete memory
+span from ordinary prompt LM. The answer fraction is
+`1 - prompt_loss_fraction - memory_loss_fraction`; values `0.1` and `0.45`
+therefore give 45% answer / 45% memory-copy / 10% ordinary prompt LM. Measure
+clean-text regression on the raw held-out books:
 
 For a variable-SWA generalization run, set `full_attention_lm_probability` to
 route that fraction of microbatches to prompt-only LM training under full

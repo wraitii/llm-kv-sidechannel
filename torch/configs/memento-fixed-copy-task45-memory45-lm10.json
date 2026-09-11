@@ -2,7 +2,7 @@
   "model": "models/Qwen3-1.7B-Base",
   "revision": "ea980cb0a6c2ae4b936e82123acc929f1cec04c1",
   "data": "data/pg19-3000-memory-fixed-copy/train.jsonl",
-  "run_dir": "outputs/memento-fixed-copy-task90-lm10",
+  "run_dir": "outputs/memento-fixed-copy-task45-memory45-lm10",
   "policy": "memento",
   "max_length": 3000,
   "steps": 500,
@@ -16,6 +16,7 @@
   "lora_alpha": 32,
   "task_probability": 1.0,
   "prompt_loss_fraction": 0.1,
+  "memory_loss_fraction": 0.45,
   "save_every": 25,
   "monitor_interval_s": 10,
   "seed": 1337

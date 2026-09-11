@@ -13,12 +13,13 @@ def test_mixed_causal_loss_averages_prompt_and_answer_separately():
     input_ids = torch.tensor([[0, 1, 2, 3, 4]])
     labels = torch.tensor([[-100, -100, -100, 3, 4]])
 
-    combined, answer, prompt = mixed_causal_loss(
+    combined, answer, prompt, memory = mixed_causal_loss(
         logits, input_ids, labels, [3], prompt_loss_weight=0.25)
 
     expected = math.log(7)
     assert answer.item() == pytest.approx(expected)
     assert prompt.item() == pytest.approx(expected)
+    assert memory.item() == 0.0
     assert combined.item() == pytest.approx(1.25 * expected)
     combined.backward()
     assert logits.grad is not None
@@ -29,12 +30,29 @@ def test_mixed_causal_loss_supports_normalized_fraction():
     input_ids = torch.tensor([[0, 1, 2, 3, 4]])
     labels = torch.tensor([[-100, -100, -100, 3, 4]])
 
-    combined, answer, prompt = mixed_causal_loss(
+    combined, answer, prompt, memory = mixed_causal_loss(
         logits, input_ids, labels, [3], prompt_loss_fraction=0.1)
 
     expected = math.log(7)
     assert answer.item() == pytest.approx(expected)
     assert prompt.item() == pytest.approx(expected)
+    assert memory.item() == 0.0
+    assert combined.item() == pytest.approx(expected)
+
+
+def test_mixed_causal_loss_partitions_memory_from_ordinary_prompt():
+    logits = torch.zeros((1, 8, 11), requires_grad=True)
+    input_ids = torch.tensor([[0, 1, 2, 3, 4, 5, 6, 7]])
+    labels = torch.tensor([[-100, -100, -100, -100, -100, -100, 6, 7]])
+
+    combined, answer, prompt, memory = mixed_causal_loss(
+        logits, input_ids, labels, [6], prompt_loss_fraction=0.1,
+        memory_token_spans=[((2, 4),)], memory_loss_fraction=0.45)
+
+    expected = math.log(11)
+    assert answer.item() == pytest.approx(expected)
+    assert prompt.item() == pytest.approx(expected)
+    assert memory.item() == pytest.approx(expected)
     assert combined.item() == pytest.approx(expected)
 
 
@@ -50,6 +68,16 @@ def test_prompt_loss_fraction_config_validation(tmp_path):
 
     path.write_text(json.dumps({**base, "prompt_loss_fraction": 1.0}))
     with pytest.raises(ValueError, match="less than one"):
+        load_config(path)
+
+    path.write_text(json.dumps({
+        **base, "prompt_loss_fraction": 0.1, "memory_loss_fraction": 0.45}))
+    loaded = load_config(path)
+    assert loaded["memory_loss_fraction"] == 0.45
+
+    path.write_text(json.dumps({
+        **base, "prompt_loss_fraction": 0.55, "memory_loss_fraction": 0.45}))
+    with pytest.raises(ValueError, match="sum to less than one"):
         load_config(path)
 
     path.write_text(json.dumps({

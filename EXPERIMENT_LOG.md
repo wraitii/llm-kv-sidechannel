@@ -55,8 +55,12 @@ Commands and configuration details remain in `torch/README.md` and
 
 ## Current state
 
-- `fixed-copy` implementation, tests, documentation, and the matching 3K
-  90/10 training configuration were pushed to `main` in commit `532904b`.
+- The new training objective independently averages three target groups before
+  combining them: 45% task answer, 45% copied memento tokens, and 10% ordinary
+  prompt language modeling. The sentinel itself is excluded from both the copy
+  and ordinary-language groups.
+- `fixed-copy` implementation, tests, documentation, and its initial 3K
+  configuration were pushed to `main` in commit `532904b`.
 - The Torch suite passes 76 tests.
 - Regeneration of `data/pg19-3000-memory-fixed-copy` is in progress on the
   current Vast instance. Validate its manifest, split counts, paired phase

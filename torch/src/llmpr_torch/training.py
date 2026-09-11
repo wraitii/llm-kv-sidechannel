@@ -36,10 +36,17 @@ def load_config(path: Path) -> dict:
     if float(config.get("prompt_loss_weight", 0.0)) < 0:
         raise ValueError("prompt_loss_weight must be nonnegative")
     prompt_loss_fraction = float(config.get("prompt_loss_fraction", 0.0))
+    memory_loss_fraction = float(config.get("memory_loss_fraction", 0.0))
     if not 0.0 <= prompt_loss_fraction < 1.0:
         raise ValueError("prompt_loss_fraction must be at least zero and less than one")
+    if not 0.0 <= memory_loss_fraction < 1.0:
+        raise ValueError("memory_loss_fraction must be at least zero and less than one")
+    if prompt_loss_fraction + memory_loss_fraction >= 1.0:
+        raise ValueError("prompt and memory loss fractions must sum to less than one")
     if prompt_loss_fraction and config.get("prompt_loss_weight", 0.0):
         raise ValueError("prompt_loss_fraction and prompt_loss_weight are mutually exclusive")
+    if memory_loss_fraction and config.get("prompt_loss_weight", 0.0):
+        raise ValueError("memory_loss_fraction and prompt_loss_weight are mutually exclusive")
     full_lm_probability = float(config.get("full_attention_lm_probability", 0.0))
     task_probability = float(config.get("task_probability", 1.0 - full_lm_probability))
     if not 0.0 <= full_lm_probability <= 1.0:
@@ -49,7 +56,7 @@ def load_config(path: Path) -> dict:
     if float(config.get("full_attention_lm_weight", 1.0)) < 0:
         raise ValueError("full_attention_lm_weight must be nonnegative")
     if full_lm_probability and (config.get("prompt_loss_weight", 0.0)
-                                or prompt_loss_fraction):
+                                or prompt_loss_fraction or memory_loss_fraction):
         raise ValueError(
             "mixed prompt loss and full_attention_lm_probability are mutually exclusive")
     return config
@@ -62,10 +69,12 @@ def mixed_causal_loss(
     prompt_lengths: list[int],
     prompt_loss_weight: float = 0.0,
     prompt_loss_fraction: float = 0.0,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Combine independently averaged answer and prompt next-token losses."""
-    if prompt_loss_weight and prompt_loss_fraction:
-        raise ValueError("choose either prompt_loss_weight or prompt_loss_fraction")
+    memory_token_spans: list[tuple[tuple[int, int], ...]] | None = None,
+    memory_loss_fraction: float = 0.0,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Combine independently averaged answer, ordinary-prompt, and memory losses."""
+    if prompt_loss_weight and (prompt_loss_fraction or memory_loss_fraction):
+        raise ValueError("choose either prompt_loss_weight or normalized loss fractions")
     shift_logits = logits[:, :-1].float()
     targets = input_ids[:, 1:]
     answer_mask = labels[:, 1:] != -100
@@ -73,16 +82,33 @@ def mixed_causal_loss(
     for row, prompt_length in enumerate(prompt_lengths):
         # targets[:, i] is the original input token at position i + 1.
         prompt_mask[row, :max(0, prompt_length - 1)] = True
+    memory_mask = torch.zeros_like(answer_mask)
+    if memory_loss_fraction:
+        if memory_token_spans is None:
+            raise ValueError("memory loss requires memory token spans")
+        for row, spans in enumerate(memory_token_spans):
+            if not spans:
+                raise ValueError("memory loss requires at least one memory span per row")
+            for start, end in spans:
+                # Loss index i predicts the input token at i + 1. Exclude the
+                # whole inserted span from ordinary LM, but supervise only the
+                # copied tokens after its sentinel as memory targets.
+                prompt_mask[row, max(0, start - 1):end] = False
+                memory_mask[row, start:end] = True
     token_losses = F.cross_entropy(
         shift_logits.transpose(1, 2), targets, reduction="none")
     answer_loss = token_losses[answer_mask].mean()
     prompt_loss = token_losses[prompt_mask].mean()
-    if prompt_loss_fraction:
-        combined = ((1.0 - float(prompt_loss_fraction)) * answer_loss
-                    + float(prompt_loss_fraction) * prompt_loss)
+    memory_loss = (token_losses[memory_mask].mean() if memory_loss_fraction
+                   else answer_loss.detach().new_zeros(()))
+    if prompt_loss_fraction or memory_loss_fraction:
+        answer_fraction = 1.0 - prompt_loss_fraction - memory_loss_fraction
+        combined = (answer_fraction * answer_loss
+                    + float(prompt_loss_fraction) * prompt_loss
+                    + float(memory_loss_fraction) * memory_loss)
     else:
         combined = answer_loss + float(prompt_loss_weight) * prompt_loss
-    return combined, answer_loss, prompt_loss
+    return combined, answer_loss, prompt_loss, memory_loss
 
 
 def prompt_causal_loss(
@@ -236,7 +262,7 @@ def main() -> None:
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(device)
         optimizer.zero_grad(set_to_none=True)
-        accumulated = answer_accumulated = prompt_accumulated = 0.0
+        accumulated = answer_accumulated = prompt_accumulated = memory_accumulated = 0.0
         task_micro_steps = prompt_lm_micro_steps = full_lm_micro_steps = constrained_lm_micro_steps = 0
         context_tokens = answer_tokens = lm_tokens = 0
         for _ in range(int(config["grad_accum"])):
@@ -258,6 +284,7 @@ def main() -> None:
                 retain_memory_tokens=retain_memory_tokens and not full_lm_update)
             prompt_loss_weight = float(config.get("prompt_loss_weight", 0.0))
             prompt_loss_fraction = float(config.get("prompt_loss_fraction", 0.0))
+            memory_loss_fraction = float(config.get("memory_loss_fraction", 0.0))
             if not task_update:
                 output = model(input_ids=input_ids, attention_mask=mask, use_cache=False)
                 prompt_loss = prompt_causal_loss(
@@ -265,23 +292,26 @@ def main() -> None:
                 loss = ((float(config.get("full_attention_lm_weight", 1.0))
                          if full_lm_update else 1.0) * prompt_loss)
                 answer_loss = loss.detach().new_zeros(())
+                memory_loss = loss.detach().new_zeros(())
                 if full_lm_update:
                     full_lm_micro_steps += 1
                 else:
                     constrained_lm_micro_steps += 1
                 prompt_lm_micro_steps += 1
-            elif prompt_loss_weight or prompt_loss_fraction:
+            elif prompt_loss_weight or prompt_loss_fraction or memory_loss_fraction:
                 output = model(input_ids=input_ids, attention_mask=mask, use_cache=False)
-                loss, answer_loss, prompt_loss = mixed_causal_loss(
+                loss, answer_loss, prompt_loss, memory_loss = mixed_causal_loss(
                     output.logits, input_ids, labels,
                     [row.prompt_length for row in batch], prompt_loss_weight,
-                    prompt_loss_fraction)
+                    prompt_loss_fraction,
+                    [row.memory_token_spans for row in batch], memory_loss_fraction)
                 prompt_lm_micro_steps += 1
             else:
                 loss = answer_loss = model(
                     input_ids=input_ids, labels=labels,
                     attention_mask=mask, use_cache=False).loss
                 prompt_loss = loss.detach().new_zeros(())
+                memory_loss = loss.detach().new_zeros(())
             if task_update:
                 task_micro_steps += 1
             if not torch.isfinite(loss):
@@ -290,11 +320,12 @@ def main() -> None:
             accumulated += float(loss.detach().cpu()) / int(config["grad_accum"])
             answer_accumulated += float(answer_loss.detach().cpu()) / int(config["grad_accum"])
             prompt_accumulated += float(prompt_loss.detach().cpu()) / int(config["grad_accum"])
+            memory_accumulated += float(memory_loss.detach().cpu()) / int(config["grad_accum"])
             batch_answer_tokens = int((labels != -100).sum())
             if task_update:
                 answer_tokens += batch_answer_tokens
                 tokens_seen += batch_answer_tokens
-                if prompt_loss_weight or prompt_loss_fraction:
+                if prompt_loss_weight or prompt_loss_fraction or memory_loss_fraction:
                     batch_lm_tokens = sum(max(0, row.prompt_length - 1) for row in batch)
                     lm_tokens += batch_lm_tokens
                     tokens_seen += batch_lm_tokens
@@ -320,11 +351,14 @@ def main() -> None:
         reported_prompt_loss = (
             prompt_accumulated * accumulation_steps / prompt_lm_micro_steps
             if prompt_lm_micro_steps else 0.0)
+        reported_memory_loss = memory_accumulated
         record = {"event": "train", "step": step, "micro_step": micro_step,
                   "loss": accumulated, "answer_loss": reported_answer_loss,
                   "prompt_lm_loss": reported_prompt_loss,
+                  "memory_loss": reported_memory_loss,
                   "prompt_loss_weight": float(config.get("prompt_loss_weight", 0.0)),
                   "prompt_loss_fraction": float(config.get("prompt_loss_fraction", 0.0)),
+                  "memory_loss_fraction": float(config.get("memory_loss_fraction", 0.0)),
                   "full_attention_lm_probability": float(
                       config.get("full_attention_lm_probability", 0.0)),
                   "task_probability": float(config.get(
