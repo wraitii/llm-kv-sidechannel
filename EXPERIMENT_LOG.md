@@ -61,7 +61,11 @@ Commands and configuration details remain in `torch/README.md` and
   and ordinary-language groups.
 - `fixed-copy` implementation, tests, documentation, and its initial 3K
   configuration were pushed to `main` in commit `532904b`.
-- The Torch suite passes 76 tests.
-- Regeneration of `data/pg19-3000-memory-fixed-copy` is in progress on the
-  current Vast instance. Validate its manifest, split counts, paired phase
-  alignment, and actual token substitutions before training.
+- The Torch suite passes 77 tests. The regenerated dataset contains 2,048
+  training, 400 validation, and 800 test rows. Split counts, paired phases,
+  source strides, exact source-ID substitutions, and the 3K limit were checked
+  successfully on the Vast instance.
+- A fresh Qwen base-model run using
+  `memento-fixed-copy-task45-memory45-lm10.json` is active. It saves every 25
+  steps; inspect windowed answer, memory, and ordinary-LM losses at those
+  boundaries and stop early if all relevant curves plateau.
