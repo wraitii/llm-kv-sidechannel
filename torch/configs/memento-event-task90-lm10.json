@@ -1,10 +1,10 @@
 {
   "model": "models/Qwen3-1.7B-Base",
   "revision": "ea980cb0a6c2ae4b936e82123acc929f1cec04c1",
-  "data": "data/pg19-3800-memory-paired/train-event.jsonl",
+  "data": "data/pg19-3000-memory-paired/train-event.jsonl",
   "run_dir": "outputs/memento-event-task90-lm10",
   "policy": "memento",
-  "max_length": 3800,
+  "max_length": 3000,
   "steps": 500,
   "batch_size": 1,
   "grad_accum": 16,

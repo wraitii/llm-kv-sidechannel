@@ -69,8 +69,8 @@ episodes with:
 ```bash
 uv run llmpr-prepare-pg19 \
   --model models/Qwen3-1.7B-Base \
-  --output-dir data/pg19-3800-memory-paired \
-  --context-lengths 3800 --train-books 256 \
+  --output-dir data/pg19-3000-memory-paired \
+  --context-lengths 3000 --train-books 256 \
   --validation-books 50 --test-books 100 \
   --memory-layout both --memory-tokens-per-span 16 \
   --memory-compression-ratio 20
