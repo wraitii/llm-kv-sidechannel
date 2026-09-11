@@ -38,6 +38,13 @@ class VariableSWA:
 
 
 @dataclass(frozen=True)
+class MementoOnly:
+    """Event-delimited blocks with completed memory spans as sole old context."""
+
+    kind: str = "memento"
+
+
+@dataclass(frozen=True)
 class StreamingLog:
     """Recent tokens plus irreversible log-age thinning of older tokens."""
 
@@ -112,6 +119,62 @@ def streaming_visibility(length: int, policy: StreamingLog) -> np.ndarray:
     for query, survivors in enumerate(policy.survivor_schedule(length)):
         mask[0, query, list(survivors)] = True
     return mask
+
+
+def retain_memory_positions(
+    visible: np.ndarray,
+    memory_spans: tuple[tuple[int, int], ...],
+) -> np.ndarray:
+    """Compose a base mask with permanently retained inclusive memory spans."""
+    if visible.ndim != 3 or visible.shape[0] != 1 or visible.shape[1] != visible.shape[2]:
+        raise ValueError("visibility must have shape [1, length, length]")
+    length = visible.shape[1]
+    memory = []
+    for start, end in memory_spans:
+        if start < 0 or end < start or end >= length:
+            raise ValueError(f"invalid inclusive memory span: {(start, end)}")
+        memory.extend(range(start, end + 1))
+    if not memory:
+        return visible
+    result = visible.copy()
+    queries = np.arange(length)[:, None]
+    keys = np.asarray(sorted(set(memory)), dtype=np.int64)[None, :]
+    result[0][:, keys[0]] |= keys <= queries
+    return result
+
+
+def memento_visibility(
+    length: int,
+    memory_spans: tuple[tuple[int, int], ...],
+) -> np.ndarray:
+    """Causal Memento mask derived solely from inclusive memory spans.
+
+    While a memory span is being processed it sees the ordinary block since
+    the preceding memory span. Once complete, that block is hidden and the
+    completed memory tokens remain visible to all later queries.
+    """
+    if length < 1:
+        raise ValueError("length must be positive")
+    spans = tuple(sorted(memory_spans))
+    previous_end = -1
+    for start, end in spans:
+        if start <= previous_end or end < start or end >= length:
+            raise ValueError(f"invalid or overlapping inclusive memory span: {(start, end)}")
+        previous_end = end
+    visible = np.zeros((1, length, length), dtype=np.bool_)
+    memory_positions: list[int] = []
+    completed_end = -1
+    span_index = 0
+    for query in range(length):
+        while span_index < len(spans) and query > spans[span_index][1]:
+            start, end = spans[span_index]
+            memory_positions.extend(range(start, end + 1))
+            completed_end = end
+            span_index += 1
+        visible[0, query, completed_end + 1:query + 1] = True
+        if memory_positions:
+            visible[0, query, memory_positions] = True
+    return visible
 
 
 def additive_from_visibility(

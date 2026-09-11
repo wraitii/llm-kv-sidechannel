@@ -14,13 +14,17 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .devices import select_device, training_dtype
 from .lora import attach_lora
-from .policies import FullAttention, FixedSWA, StreamingLog, VariableSWA, additive_from_visibility
+from .policies import (
+    FullAttention, FixedSWA, MementoOnly, StreamingLog, VariableSWA,
+    additive_from_visibility, memento_visibility,
+)
 from .tokenization import tokenize_episode
-from .state_data import StateEpisode, StateEvent
+from .state_data import MemorySpan, StateEpisode, StateEvent
 from .scored import ScoredRetention, enable_scored_retention
 
 
-Policy = FullAttention | FixedSWA | VariableSWA | StreamingLog | ScoredRetention
+Policy = (FullAttention | FixedSWA | VariableSWA | MementoOnly | StreamingLog |
+          ScoredRetention)
 
 
 def task_loss_aggregates(
@@ -126,6 +130,8 @@ class RestartMode:
 def parse_policy(value: str) -> Policy:
     if value == "full":
         return FullAttention()
+    if value == "memento":
+        return MementoOnly()
     if value.startswith("swa:"):
         return FixedSWA(int(value.split(":", 1)[1]))
     if value.startswith("variable-swa:"):
@@ -138,8 +144,8 @@ def parse_policy(value: str) -> Policy:
         recent, memory = value.split(":", 1)[1].split("+")
         return ScoredRetention(int(recent), int(memory))
     raise ValueError(
-        f"unknown policy {value!r}; use full, swa:N, variable-swa:MIN-MAX, "
-        "log:R+M, or scored:R+M")
+        f"unknown policy {value!r}; use full, memento, swa:N, "
+        "variable-swa:MIN-MAX, log:R+M, or scored:R+M")
 
 
 def parse_restart(value: str) -> RestartMode:
@@ -152,9 +158,18 @@ def parse_restart(value: str) -> RestartMode:
     raise ValueError(f"invalid restart mode: {value}")
 
 
-def policy_visibility(positions: tuple[int, ...], policy: Policy) -> np.ndarray:
+def policy_visibility(
+    positions: tuple[int, ...],
+    policy: Policy,
+    memory_token_spans: tuple[tuple[int, int], ...] = (),
+) -> np.ndarray:
     """Visibility on a possibly sparse list of original absolute positions."""
     pos = np.asarray(positions, dtype=np.int64)
+    if isinstance(policy, MementoOnly):
+        if not memory_token_spans:
+            raise ValueError("Memento policy requires annotated memory spans")
+        full = memento_visibility(int(pos[-1]) + 1, memory_token_spans)[0]
+        return full[np.ix_(pos, pos)][None]
     q, k = pos[:, None], pos[None, :]
     visible = k <= q
     if isinstance(policy, FixedSWA):
@@ -168,6 +183,15 @@ def policy_visibility(positions: tuple[int, ...], policy: Policy) -> np.ndarray:
                 alive_positions = np.intersect1d(
                     pos, np.asarray(alive, dtype=np.int64), assume_unique=True)
                 visible[row, np.searchsorted(pos, alive_positions)] = True
+    if memory_token_spans:
+        memory = np.asarray([
+            position for start, end in memory_token_spans
+            for position in range(start, end + 1)
+        ], dtype=np.int64)
+        memory_columns = np.flatnonzero(np.isin(pos, memory))
+        if len(memory_columns):
+            visible[:, memory_columns] |= (
+                pos[memory_columns][None, :] <= pos[:, None])
     return visible[None]
 
 
@@ -180,7 +204,12 @@ def last_restart_before(target: int, prompt_length: int, mode: RestartMode) -> i
     return (target // mode.every) * mode.every
 
 
-def reconstruction_positions(end: int, restart: int, policy: Policy) -> tuple[int, ...]:
+def reconstruction_positions(
+    end: int,
+    restart: int,
+    policy: Policy,
+    memory_token_spans: tuple[tuple[int, int], ...] = (),
+) -> tuple[int, ...]:
     """Raw tokens replayed after discarding contextual KVs at ``restart``."""
     if isinstance(policy, FullAttention):
         support = range(restart)
@@ -188,9 +217,20 @@ def reconstruction_positions(end: int, restart: int, policy: Policy) -> tuple[in
         support = range(max(0, restart - policy.window), restart)
     elif isinstance(policy, StreamingLog):
         support = policy.survivors(restart)
+    elif isinstance(policy, MementoOnly):
+        if not memory_token_spans:
+            raise ValueError("Memento policy requires annotated memory spans")
+        completed = [(start, stop) for start, stop in memory_token_spans
+                     if stop < restart]
+        memory = [position for start, stop in completed
+                  for position in range(start, stop + 1)]
+        last_end = completed[-1][1] if completed else -1
+        support = [*memory, *range(last_end + 1, restart)]
     else:
         raise ValueError("scored reconstruction needs the frozen per-layer schedules")
-    return tuple(dict.fromkeys([*support, *range(restart, end)]))
+    memory = [position for start, stop in memory_token_spans
+              for position in range(start, stop + 1) if position < restart]
+    return tuple(sorted(set([*support, *memory, *range(restart, end)])))
 
 
 def scored_reconstruction_positions(end: int, restart: int, policy: ScoredRetention,
@@ -215,6 +255,7 @@ def token_nlls(
     policy: Policy,
     restart_mode: RestartMode,
     device: torch.device,
+    memory_token_spans: tuple[tuple[int, int], ...] = (),
 ) -> list[float]:
     """Evaluate answer tokens, rebuilding from raw IDs at requested boundaries.
 
@@ -246,14 +287,15 @@ def token_nlls(
         restart = last_restart_before(target, prompt_length, restart_mode)
         positions = (tuple(range(target)) if restart is None else
                      scored_reconstruction_positions(target, restart, policy, attentions)
-                     if scored else reconstruction_positions(target, restart, policy))
+                     if scored else reconstruction_positions(
+                         target, restart, policy, memory_token_spans))
         tokens = torch.tensor([[input_ids[index] for index in positions]], device=device)
         position_ids = torch.tensor([positions], device=device)
         for attention in attentions:
             if hasattr(attention, "retention_scorer"):
                 attention.llmpr_positions = position_ids[0]
         mask = additive_from_visibility(
-            policy_visibility(positions, policy), device=device,
+            policy_visibility(positions, policy, memory_token_spans), device=device,
             dtype=next(model.parameters()).dtype,
         )
         logits = model(
@@ -279,6 +321,10 @@ def load_episodes(path: Path) -> Iterable[StateEpisode]:
                 difficulty=row.get("difficulty", "natural"),
                 context_length=row.get("context_length"),
                 support_to_answer_tokens=tuple(row.get("support_to_answer_tokens", ())),
+                memory_spans=tuple(MemorySpan(**span) for span in row.get("memory_spans", ())),
+                memory_layout=row.get("memory_layout", "none"),
+                memory_tokens_per_span=int(row.get("memory_tokens_per_span", 0)),
+                memory_compression_ratio=row.get("memory_compression_ratio"),
             )
 
 
@@ -295,6 +341,10 @@ def main() -> None:
         default="preserve,restart:answer,restart:512,restart:256,restart:128",
     )
     parser.add_argument("--examples", type=int)
+    parser.add_argument(
+        "--retain-memory-tokens", action=argparse.BooleanOptionalAction, default=None,
+        help="pin annotated memory spans; defaults to the checkpoint training config",
+    )
     parser.add_argument("--split-task-type", action="store_true",
                         help="emit separate aggregates for each task_type")
     parser.add_argument("--distance-buckets", default="512,1024,2048",
@@ -329,6 +379,14 @@ def main() -> None:
             "variable SWA is a train-only distribution; evaluate its checkpoint at fixed swa:N values")
     if any(isinstance(policy, ScoredRetention) for policy in policies) and not isinstance(trained_policy, ScoredRetention):
         raise ValueError("scored evaluation requires a scored training checkpoint")
+    training_config = checkpoint_payload.get("config", {}) if checkpoint_payload else {}
+    retain_memory_tokens = (bool(training_config.get("retain_memory_tokens", False))
+                            if args.retain_memory_tokens is None
+                            else args.retain_memory_tokens)
+    if retain_memory_tokens and any(isinstance(policy, ScoredRetention) for policy in policies):
+        raise ValueError("memory retention is not yet composable with learned scored retention")
+    if retain_memory_tokens and any(isinstance(policy, MementoOnly) for policy in policies):
+        raise ValueError("Memento policy retains memory intrinsically; omit --retain-memory-tokens")
     modes = [parse_restart(value) for value in args.restart_modes.split(",")]
     episodes = list(load_episodes(args.data))
     if args.examples is not None:
@@ -341,6 +399,9 @@ def main() -> None:
                 alternatives[episode.pair_id].append(episode.answer)
             for episode in episodes:
                 encoded = tokenize_episode(tokenizer, episode, max_length=args.max_length)
+                if ((retain_memory_tokens or isinstance(policy, MementoOnly))
+                        and not encoded.memory_token_spans):
+                    raise ValueError("memory retention requires annotated memory spans")
                 choices = [answer for answer in alternatives[episode.pair_id]
                            if answer != episode.answer]
                 if len(choices) != 1:
@@ -352,7 +413,9 @@ def main() -> None:
                     ids = (*prompt_ids, *candidate_ids, tokenizer.eos_token_id)
                     labels = (*([-100] * encoded.prompt_length), *candidate_ids, -100)
                     losses = token_nlls(
-                        model, ids, labels, encoded.prompt_length, policy, mode, device)
+                        model, ids, labels, encoded.prompt_length, policy, mode, device,
+                        encoded.memory_token_spans
+                        if retain_memory_tokens or isinstance(policy, MementoOnly) else ())
                     return sum(losses), len(losses)
                 correct_loss, correct_count = score(correct_ids)
                 alternate_loss, alternate_count = score(alternate_ids)
@@ -365,6 +428,7 @@ def main() -> None:
                                            if value)):
                 print(json.dumps({
                     "policy": policy.kind, "policy_config": policy.__dict__,
+                    "retain_memory_tokens": retain_memory_tokens,
                     "restart_mode": mode.name, **aggregate,
                 }), flush=True)
 

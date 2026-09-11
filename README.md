@@ -12,9 +12,9 @@ Dedicated carrier tokens are an optional experimental condition.
 
 The CUDA-oriented Qwen3-1.7B work lives in [`torch/`](torch/README.md) with its
 own Python environment and lockfile. It targets full attention, fixed and
-variable SWA, streaming-log retention, and optionally learned scored retention;
-Memento masks and carrier tokens are not part of that port. The original MLX
-implementation remains the reference for intervention semantics.
+variable SWA, streaming-log retention, Memento-only memory spans, and optionally
+learned scored retention. The original MLX implementation remains the reference
+for its chess-specific intervention semantics.
 
 ## Implemented conditions
 

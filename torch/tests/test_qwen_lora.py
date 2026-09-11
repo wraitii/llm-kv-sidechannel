@@ -7,7 +7,7 @@ from llmpr_torch.attention import (
 from llmpr_torch.lora import TARGET_MODULES, attach_lora
 from llmpr_torch.scored import ScoredRetention, enable_scored_retention
 from llmpr_torch.soundness import run_checks
-from llmpr_torch.policies import VariableSWA
+from llmpr_torch.policies import FixedSWA, VariableSWA
 from llmpr_torch.tokenization import TokenizedEpisode
 from llmpr_torch.training import make_mask
 
@@ -71,6 +71,21 @@ def test_variable_swa_training_mask_uses_one_window_per_row():
                        windows=[2, 4])
     expected = dense_causal_mask(6, windows=torch.tensor([2, 4]))
     torch.testing.assert_close(actual, expected)
+
+
+def test_training_mask_pins_annotated_memory_positions():
+    row = TokenizedEpisode(
+        input_ids=tuple(range(8)), labels=(-100,) * 8, prompt_length=8,
+        answer_length=0, support_token_spans=(), memory_token_spans=((2, 3),),
+    )
+    actual = make_mask(
+        [row], FixedSWA(2), "cpu", torch.float32,
+        retain_memory_tokens=True,
+    )[0, 0]
+    assert actual[7, 2] == 0
+    assert actual[7, 3] == 0
+    assert actual[7, 4] < -1e20
+    assert actual[1, 2] < -1e20
 
 
 def test_all_layer_fixed_swa_config_matches_dense_reference_with_eviction():

@@ -24,6 +24,40 @@ def test_mixed_causal_loss_averages_prompt_and_answer_separately():
     assert logits.grad is not None
 
 
+def test_mixed_causal_loss_supports_normalized_fraction():
+    logits = torch.zeros((1, 5, 7), requires_grad=True)
+    input_ids = torch.tensor([[0, 1, 2, 3, 4]])
+    labels = torch.tensor([[-100, -100, -100, 3, 4]])
+
+    combined, answer, prompt = mixed_causal_loss(
+        logits, input_ids, labels, [3], prompt_loss_fraction=0.1)
+
+    expected = math.log(7)
+    assert answer.item() == pytest.approx(expected)
+    assert prompt.item() == pytest.approx(expected)
+    assert combined.item() == pytest.approx(expected)
+
+
+def test_prompt_loss_fraction_config_validation(tmp_path):
+    base = {
+        "model": "model", "data": "data", "run_dir": "run", "steps": 1,
+        "learning_rate": 1e-4, "batch_size": 1, "grad_accum": 1,
+        "policy": "memento",
+    }
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({**base, "prompt_loss_fraction": 0.1}))
+    assert load_config(path)["prompt_loss_fraction"] == 0.1
+
+    path.write_text(json.dumps({**base, "prompt_loss_fraction": 1.0}))
+    with pytest.raises(ValueError, match="less than one"):
+        load_config(path)
+
+    path.write_text(json.dumps({
+        **base, "prompt_loss_fraction": 0.1, "prompt_loss_weight": 0.1}))
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        load_config(path)
+
+
 def test_prompt_causal_loss_excludes_answer_tokens():
     logits = torch.zeros((1, 5, 7), requires_grad=True)
     input_ids = torch.tensor([[0, 1, 2, 3, 4]])

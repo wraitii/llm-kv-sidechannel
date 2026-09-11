@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 from dataclasses import replace
 import hashlib
 import json
@@ -12,7 +13,9 @@ import numpy as np
 from transformers import AutoTokenizer
 from huggingface_hub import HfApi
 
-from .state_data import StateEpisode, make_counterfactual_pair, make_passcode_pair
+from .state_data import (
+    MemorySpan, StateEpisode, StateEvent, make_counterfactual_pair, make_passcode_pair,
+)
 from .tokenization import tokenize_episode, validate_counterfactual_pair
 
 
@@ -26,6 +29,148 @@ LEVELS: dict[str, Callable[..., tuple[StateEpisode, StateEpisode]]] = {
     "structured": lambda text, **kw: make_counterfactual_pair(text, natural=False, **kw),
     "natural": lambda text, **kw: make_counterfactual_pair(text, natural=True, **kw),
 }
+
+MEMORY_LAYOUTS = {"none", "event", "fixed"}
+
+
+def _shift_event(event: StateEvent, insertions: list[tuple[int, str, int | None]],
+                 insertion_lengths: list[int]) -> StateEvent:
+    start_shift = sum(length for (position, _, _), length in zip(
+        insertions, insertion_lengths, strict=True) if position <= event.char_start)
+    end_shift = sum(length for (position, _, _), length in zip(
+        insertions, insertion_lengths, strict=True) if position < event.char_end)
+    return replace(event, char_start=event.char_start + start_shift,
+                   char_end=event.char_end + end_shift)
+
+
+def _fixed_ratio_memory_positions(
+    episode: StateEpisode,
+    *,
+    tokenizer,
+    tokens_per_span: int,
+    compression_ratio: int,
+) -> list[int]:
+    """Choose task-agnostic boundaries at a fixed ordinary-token interval."""
+    question = episode.prompt.rfind("\n\nQuestion:")
+    if question < 1:
+        raise ValueError("episode has no question boundary")
+    if compression_ratio < 1:
+        raise ValueError("memory compression ratio must be positive")
+    blocked = [(event.char_start, event.char_end) for event in episode.events]
+    encoded = tokenizer(
+        episode.prompt[:question], add_special_tokens=False,
+        return_offsets_mapping=True)
+    offsets = encoded["offset_mapping"]
+    interval = tokens_per_span * compression_ratio
+    block_count = max(1, round(len(offsets) / interval))
+    positions = []
+    for block_index in range(1, block_count):
+        target = round(block_index * len(offsets) / block_count)
+        position = offsets[target][0]
+        containing = next(((start, end) for start, end in blocked
+                           if start < position < end), None)
+        if containing is not None:
+            position = containing[1]
+        positions.append(position)
+    # Compress the final, possibly short block before exposing the question.
+    positions.append(question)
+    return sorted(set(positions))
+
+
+def inject_memory(
+    episode: StateEpisode,
+    *,
+    layout: str,
+    tokens_per_span: int,
+    memory_token: str,
+    seed: int,
+    tokenizer=None,
+    compression_ratio: int = 20,
+) -> StateEpisode:
+    """Insert meaningless memory-token spans and preserve character metadata."""
+    if layout not in MEMORY_LAYOUTS:
+        raise ValueError(f"unknown memory layout: {layout}")
+    if layout == "none":
+        return episode
+    if tokens_per_span < 1:
+        raise ValueError("memory tokens per span must be positive")
+    if not memory_token:
+        raise ValueError("memory token must be nonempty")
+    if layout == "event":
+        insertions = [(event.char_end, "event", event.event_index)
+                      for event in episode.events]
+    else:
+        if tokenizer is None:
+            raise ValueError("fixed-ratio memory placement requires a tokenizer")
+        insertions = [(position, "fixed", None) for position in
+                      _fixed_ratio_memory_positions(
+                          episode, tokenizer=tokenizer,
+                          tokens_per_span=tokens_per_span,
+                          compression_ratio=compression_ratio)]
+    insertions.sort()
+    token_text = memory_token * tokens_per_span
+    rendered = f"\n\n{token_text}\n\n"
+    insertion_lengths = [len(rendered)] * len(insertions)
+    chunks = []
+    spans = []
+    cursor = 0
+    for memory_index, (position, placement, after_event) in enumerate(insertions):
+        chunks.append(episode.prompt[cursor:position])
+        base = sum(map(len, chunks))
+        chunks.append(rendered)
+        spans.append(MemorySpan(
+            char_start=base + 2, char_end=base + 2 + len(token_text),
+            memory_index=memory_index, placement=placement,
+            after_event_index=after_event,
+        ))
+        cursor = position
+    chunks.append(episode.prompt[cursor:])
+    suffix = f"-memory-{layout}-{tokens_per_span}"
+    return replace(
+        episode,
+        example_id=episode.example_id + suffix,
+        pair_id=episode.pair_id + suffix,
+        prompt="".join(chunks),
+        events=tuple(_shift_event(event, insertions, insertion_lengths)
+                     for event in episode.events),
+        memory_spans=tuple(spans),
+        memory_layout=layout,
+        memory_tokens_per_span=tokens_per_span,
+        memory_compression_ratio=(compression_ratio if layout == "fixed" else None),
+    )
+
+
+def remove_memory(episode: StateEpisode) -> StateEpisode:
+    """Recover the byte-identical pre-memory episode from an annotated row."""
+    if not episode.memory_spans:
+        return episode
+    removals = [(span.char_start - 2, span.char_end + 2)
+                for span in episode.memory_spans]
+    chunks = []
+    cursor = 0
+    for start, end in removals:
+        chunks.append(episode.prompt[cursor:start])
+        cursor = end
+    chunks.append(episode.prompt[cursor:])
+    prompt = "".join(chunks)
+    events = []
+    search_start = 0
+    for event in episode.events:
+        text = episode.prompt[event.char_start:event.char_end]
+        char_start = prompt.find(text, search_start)
+        if char_start < 0:
+            raise ValueError("could not recover event after removing memory spans")
+        events.append(replace(event, char_start=char_start,
+                              char_end=char_start + len(text)))
+        search_start = char_start + len(text)
+    suffix = f"-memory-{episode.memory_layout}-{episode.memory_tokens_per_span}"
+    example_id = episode.example_id.removesuffix(suffix)
+    pair_id = episode.pair_id.removesuffix(suffix)
+    return replace(
+        episode, example_id=example_id, pair_id=pair_id, prompt=prompt,
+        events=tuple(events), memory_spans=(), memory_layout="none",
+        memory_tokens_per_span=0, memory_compression_ratio=None,
+    )
 
 
 def insertion_positions(tokenizer, background: str, *, level: str, seed: int) -> tuple[int, ...]:
@@ -71,6 +216,10 @@ def fit_pair(
     context_length: int,
     builder: Callable[..., tuple[StateEpisode, StateEpisode]],
     level: str | None = None,
+    memory_layout: str = "none",
+    memory_tokens_per_span: int = 0,
+    memory_token: str = "<|fim_pad|>",
+    memory_compression_ratio: int = 20,
 ) -> tuple[StateEpisode, StateEpisode]:
     """Find the largest prefix whose complete prompt and answer fit the budget."""
     # Do not tokenize a multi-million-token book to construct one short row.
@@ -105,6 +254,14 @@ def fit_pair(
             candidate = builder(
                 background, background_id=background_id, seed=seed + attempt,
                 insertion_char_positions=positions)
+            if memory_layout != "none":
+                candidate = tuple(inject_memory(
+                    row, layout=memory_layout,
+                    tokens_per_span=memory_tokens_per_span,
+                    memory_token=memory_token, seed=seed + attempt + 7919,
+                    tokenizer=tokenizer,
+                    compression_ratio=memory_compression_ratio,
+                ) for row in candidate)
             candidate_encoded = [
                 tokenize_episode(tokenizer, row, max_length=10**12)
                 for row in candidate
@@ -157,12 +314,25 @@ def main() -> None:
     parser.add_argument("--validation-books", type=int, default=2)
     parser.add_argument("--test-books", type=int, default=2)
     parser.add_argument("--seed", type=int, default=1337)
+    parser.add_argument("--memory-layout", choices=sorted(MEMORY_LAYOUTS | {"both"}), default="none",
+                        help="insert memory spans after events or at a fixed compression ratio")
+    parser.add_argument("--memory-tokens-per-span", type=int, default=0,
+                        help="width of every inserted memory span; zero disables memory")
+    parser.add_argument("--memory-token", default="<|fim_pad|>",
+                        help="single-token text repeated within each memory span")
+    parser.add_argument("--memory-compression-ratio", type=int, default=20,
+                        help="ordinary tokens per memory token in fixed/both layouts")
     parser.add_argument("--no-streaming", action="store_true")
     args = parser.parse_args()
     levels = tuple(item for item in args.levels.split(",") if item)
     unknown = set(levels) - LEVELS.keys()
     if unknown:
         parser.error(f"unknown levels: {sorted(unknown)}")
+    if (args.memory_layout == "none") != (args.memory_tokens_per_span == 0):
+        parser.error("use zero memory tokens with layout=none, or a positive count otherwise")
+    if args.memory_compression_ratio < 1:
+        parser.error("--memory-compression-ratio must be positive")
+    memory_token_ids = None
     counts = {"train": args.train_books, "validation": args.validation_books,
               "test": args.test_books}
     if min(counts.values()) < 0 or not any(counts.values()):
@@ -176,6 +346,11 @@ def main() -> None:
         raise SystemExit("install data support with: uv sync --extra data") from error
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
+    if args.memory_layout != "none":
+        memory_token_ids = tokenizer(
+            args.memory_token, add_special_tokens=False)["input_ids"]
+        if len(memory_token_ids) != 1:
+            parser.error("--memory-token must encode to exactly one token")
     resolved_revision = HfApi().dataset_info(
         args.dataset, revision=args.revision).sha
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -190,9 +365,19 @@ def main() -> None:
         )
         books = select_books(source, count)
         raw_path = args.output_dir / f"pg19-{split}.jsonl"
-        episode_path = args.output_dir / f"{split}.jsonl"
+        layouts = (("event", "fixed") if args.memory_layout == "both"
+                   else (args.memory_layout,))
+        episode_paths = {
+            layout: args.output_dir / (
+                f"{split}-{layout}.jsonl" if args.memory_layout == "both"
+                else f"{split}.jsonl")
+            for layout in layouts
+        }
         episode_count = 0
-        with raw_path.open("x") as raw, episode_path.open("x") as episodes:
+        with ExitStack() as stack:
+            raw = stack.enter_context(raw_path.open("x"))
+            outputs = {layout: stack.enter_context(path.open("x"))
+                       for layout, path in episode_paths.items()}
             for book_index, book in enumerate(books):
                 book_id = stable_book_id(book)
                 raw.write(json.dumps({
@@ -202,22 +387,62 @@ def main() -> None:
                 }, ensure_ascii=False) + "\n")
                 for length in args.context_lengths:
                     for level_index, level in enumerate(levels):
+                        fit_layout = "fixed" if args.memory_layout == "both" else args.memory_layout
+                        fit_length = length - 16 if args.memory_layout == "both" else length
                         pair = fit_pair(
                             tokenizer, book["text"], background_id=book_id,
                             seed=args.seed + book_index * 1009 + level_index * 97 + length,
-                            context_length=length, builder=LEVELS[level], level=level,
+                            context_length=fit_length, builder=LEVELS[level], level=level,
+                            memory_layout=fit_layout,
+                            memory_tokens_per_span=args.memory_tokens_per_span,
+                            memory_token=args.memory_token,
+                            memory_compression_ratio=args.memory_compression_ratio,
                         )
-                        for row in pair:
-                            episodes.write(row.to_json() + "\n")
-                            episode_count += 1
+                        pairs = {fit_layout: pair}
+                        if args.memory_layout == "both":
+                            base_pair = tuple(remove_memory(row) for row in pair)
+                            event_pair = tuple(inject_memory(
+                                row, layout="event",
+                                tokens_per_span=args.memory_tokens_per_span,
+                                memory_token=args.memory_token,
+                                seed=args.seed + book_index * 1009 + level_index * 97
+                                + length + 7919,
+                                tokenizer=tokenizer,
+                                compression_ratio=args.memory_compression_ratio,
+                            ) for row in base_pair)
+                            encoded = [tokenize_episode(tokenizer, row, max_length=length)
+                                       for row in event_pair]
+                            validate_counterfactual_pair(*encoded)
+                            pairs["event"] = tuple(replace(
+                                row,
+                                support_to_answer_tokens=tuple(
+                                    item.prompt_length - end - 1
+                                    for _, end in item.support_token_spans),
+                            ) for row, item in zip(event_pair, encoded, strict=True))
+                            pairs = {layout: tuple(replace(row, context_length=length)
+                                                  for row in layout_pair)
+                                     for layout, layout_pair in pairs.items()}
+                        for layout, layout_pair in pairs.items():
+                            for row in layout_pair:
+                                outputs[layout].write(row.to_json() + "\n")
+                                episode_count += 1
         totals[split] = {"books": len(books), "episodes": episode_count,
-                         "raw": str(raw_path), "data": str(episode_path)}
+                         "raw": str(raw_path),
+                         "data": ({layout: str(path) for layout, path in episode_paths.items()}
+                                  if args.memory_layout == "both"
+                                  else str(next(iter(episode_paths.values()))))}
 
     manifest = {
         "format_version": 1, "dataset": args.dataset,
         "requested_revision": args.revision, "resolved_revision": resolved_revision,
         "streaming": not args.no_streaming, "model": args.model,
         "context_lengths": args.context_lengths, "levels": levels,
+        "memory_layout": args.memory_layout,
+        "memory_tokens_per_span": args.memory_tokens_per_span,
+        "memory_token": args.memory_token,
+        "memory_token_id": None if memory_token_ids is None else memory_token_ids[0],
+        "memory_compression_ratio": args.memory_compression_ratio,
+        "paired_layout_fit_slack": 16 if args.memory_layout == "both" else 0,
         "seed": args.seed, "splits": totals,
     }
     (args.output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

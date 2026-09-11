@@ -1,7 +1,8 @@
 import pytest
 
 from llmpr_torch.pg19_data import (
-    LEVELS, fit_pair, insertion_positions, parse_lengths, select_books, stable_book_id,
+    LEVELS, fit_pair, inject_memory, insertion_positions, parse_lengths,
+    remove_memory, select_books, stable_book_id,
 )
 from llmpr_torch.state_data import make_counterfactual_pair, make_passcode_pair
 from llmpr_torch.tokenization import tokenize_episode, validate_counterfactual_pair
@@ -88,3 +89,57 @@ def test_passcode_levels_are_labeled_separately(level):
                     context_length=2048, builder=LEVELS[level], level=level)
     assert {row.task_type for row in pair} == {level}
     assert all(row.support_to_answer_tokens for row in pair)
+
+
+@pytest.mark.parametrize("level", list(LEVELS))
+@pytest.mark.parametrize("layout", ["event", "fixed"])
+def test_memory_layouts_are_aligned(level, layout):
+    pair = fit_pair(
+        CharacterTokenizer(), TEXT, background_id="book", seed=17,
+        context_length=3072, builder=LEVELS[level], level=level,
+        memory_layout=layout, memory_tokens_per_span=4, memory_token="¤",
+        memory_compression_ratio=20,
+    )
+    encoded = [tokenize_episode(CharacterTokenizer(), row, max_length=3072)
+               for row in pair]
+    validate_counterfactual_pair(*encoded)
+    for row, tokenized in zip(pair, encoded, strict=True):
+        assert row.memory_layout == layout
+        if layout == "event":
+            assert len(row.memory_spans) == len(row.events)
+        else:
+            assert row.memory_compression_ratio == 20
+            assert row.memory_spans[-1].char_start > row.events[-1].char_end
+        assert len(tokenized.memory_token_spans) == len(row.memory_spans)
+        assert all(end - start + 1 == 4 for start, end in tokenized.memory_token_spans)
+        assert all(row.prompt[span.char_start:span.char_end] == "¤" * 4
+                   for span in row.memory_spans)
+        if layout == "event":
+            assert all(span.after_event_index == span.memory_index
+                       for span in row.memory_spans)
+            assert all(event.char_end < span.char_start
+                       for event, span in zip(row.events, row.memory_spans, strict=True))
+        else:
+            assert all(span.after_event_index is None for span in row.memory_spans)
+
+
+def test_memory_layout_none_preserves_episode():
+    episode = make_passcode_pair(TEXT, background_id="book", seed=3)[0]
+    assert inject_memory(
+        episode, layout="none", tokens_per_span=0, memory_token="¤", seed=9,
+    ) == episode
+
+
+def test_event_and_fixed_layouts_derive_from_one_byte_identical_base_episode():
+    base = make_counterfactual_pair(TEXT, background_id="book", seed=23)[0]
+    event = inject_memory(
+        base, layout="event", tokens_per_span=4, memory_token="¤", seed=31,
+    )
+    recovered = remove_memory(event)
+    assert recovered == base
+    fixed = inject_memory(
+        recovered, layout="fixed", tokens_per_span=4, memory_token="¤", seed=31,
+        tokenizer=CharacterTokenizer(), compression_ratio=20,
+    )
+    assert remove_memory(fixed) == base
+    assert fixed.memory_compression_ratio == 20

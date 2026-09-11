@@ -4,7 +4,9 @@ from llmpr_torch.evaluation import (
     RestartMode, last_restart_before, parse_policy, parse_restart,
     paired_task_aggregates, policy_visibility, reconstruction_positions, task_loss_aggregates,
 )
-from llmpr_torch.policies import FixedSWA, FullAttention, StreamingLog, VariableSWA
+from llmpr_torch.policies import (
+    FixedSWA, FullAttention, MementoOnly, StreamingLog, VariableSWA,
+)
 from llmpr_torch.state_data import StateEpisode
 
 
@@ -25,11 +27,32 @@ def test_sparse_policy_visibility_uses_absolute_positions():
     assert np.array_equal(np.flatnonzero(log_visible[-1]), np.array(log.survivors(12)))
 
 
+def test_memory_overlay_survives_policy_eviction_and_restart():
+    policy = StreamingLog(2, 2)
+    spans = ((2, 3),)
+    visible = policy_visibility(tuple(range(12)), policy, spans)[0]
+    assert {2, 3} <= set(np.flatnonzero(visible[-1]))
+    replay = reconstruction_positions(12, 8, policy, spans)
+    assert {2, 3} <= set(replay)
+    assert set(policy.survivors(8)) <= set(replay)
+    assert set(range(8, 12)) <= set(replay)
+
+
 def test_policy_and_restart_parsing():
     assert parse_policy("swa:64") == FixedSWA(64)
     assert parse_policy("variable-swa:64-1024") == VariableSWA(64, 1024)
     assert parse_policy("log:16+8") == StreamingLog(16, 8)
+    assert parse_policy("memento") == MementoOnly()
     assert parse_restart("restart:1").every == 1
+
+
+def test_memento_restart_replays_memories_and_current_block_only():
+    spans = ((3, 4), (8, 9))
+    assert reconstruction_positions(12, 12, MementoOnly(), spans) == (
+        3, 4, 8, 9, 10, 11,
+    )
+    sparse = policy_visibility((3, 4, 8, 9, 10, 11), MementoOnly(), spans)[0]
+    assert set(np.flatnonzero(sparse[-1])) == set(range(6))
 
 
 def test_task_loss_aggregates_can_split_task_types():

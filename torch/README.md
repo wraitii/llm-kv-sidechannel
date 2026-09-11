@@ -3,10 +3,9 @@
 This is the CUDA-oriented implementation of the Qwen experiments. The existing
 `src/llmz` package remains the MLX reference implementation.
 
-The initial vertical slice provides deterministic state-probe construction and
-a full-attention Qwen/LoRA smoke step. The correctness-first runner now supports
-full attention, fixed SWA, streaming-log retention, and learned per-layer scored
-retention. Memento masks and carrier tokens remain out of scope.
+The correctness-first Qwen/LoRA runner supports full attention, fixed and
+variable SWA, streaming-log retention, learned per-layer scored retention, and
+span-annotated Memento masks. Memory spans can also overlay the static policies.
 
 Sliding-window attention and KV restart are intentionally not approximated by
 cache cropping. Evaluation reconstructs from surviving raw token IDs at their
@@ -58,6 +57,54 @@ on a particular GPU. Run `llmpr-capacity` first, then omit lengths that do not
 fit. When training on mixed lengths, set `max_length` to the largest generated
 budget. Batches are padded to their longest row, so `batch_size: 1` or separate
 runs per length avoid wasted padding during initial capacity measurements.
+
+### Memento datasets and policies
+
+Memory spans repeat Qwen's single-token `<|fim_pad|>` and need no block markers.
+The `event` layout inserts one span after each task update. The task-agnostic
+`fixed` control partitions the prompt at a configured compression ratio and
+adds a final span before the question. Generate both from byte-identical base
+episodes with:
+
+```bash
+uv run llmpr-prepare-pg19 \
+  --model models/Qwen3-1.7B-Base \
+  --output-dir data/pg19-3800-memory-paired \
+  --context-lengths 3800 --train-books 256 \
+  --validation-books 50 --test-books 100 \
+  --memory-layout both --memory-tokens-per-span 16 \
+  --memory-compression-ratio 20
+```
+
+This writes `{split}-event.jsonl` and `{split}-fixed.jsonl`. Rows record their
+memory layout, compression setting, and exact character spans; tokenization
+derives the corresponding inclusive token spans. The fixed layout targets
+`memory_tokens_per_span * memory_compression_ratio` ordinary tokens per block,
+so 16 and 20 give approximately 320-token blocks at any context length.
+
+For Memento-only training, use:
+
+```json
+{
+  "policy": "memento"
+}
+```
+
+The checked-in paired arms are `configs/memento-event-task90-lm10.json` and
+`configs/memento-fixed-task90-lm10.json`. They differ only in dataset and output
+paths. Both train every microbatch with a normalized 90% answer-task / 10%
+prompt-LM objective under the Memento mask.
+
+Each memory span sees the ordinary block since the preceding span; afterward
+that block is hidden and completed memories remain visible. `restart:answer`
+recomputes the surviving memories without their discarded source blocks.
+
+To pin the same memory spans on top of another policy, retain that policy and
+set `"retain_memory_tokens": true`; for example, `"policy": "log:128+512"`.
+The memory positions are additional to its ordinary survivor budget. Evaluation
+inherits this setting from the checkpoint, with `--[no-]retain-memory-tokens`
+available for ablations. Learned scored retention does not yet support the
+overlay.
 
 ### Output and reproducibility
 
@@ -115,7 +162,9 @@ prompt LM (the remaining probability). Values `0.15` and `0.05` produce the
 Set `prompt_loss_weight` to add an independently token-averaged next-token
 loss over the prompt: `answer_loss + prompt_loss_weight * prompt_lm_loss`.
 The prompt is overwhelmingly untouched PG-19 text, and both components are
-logged separately. Measure clean-text regression on the raw held-out books:
+logged separately. Alternatively, set `prompt_loss_fraction` to a normalized
+mixture: `(1 - fraction) * answer_loss + fraction * prompt_lm_loss`. Do not set
+both controls. Measure clean-text regression on the raw held-out books:
 
 For a variable-SWA generalization run, set `full_attention_lm_probability` to
 route that fraction of microbatches to prompt-only LM training under full
@@ -165,8 +214,10 @@ config and change only its data path, run directory, length, and step count.
 
 ## Training and exact resume
 
-Training consumes state-episode JSONL produced by `llmpr-prepare-state` and uses
-answer-only loss. A checkpoint contains every trainable parameter (LoRA and,
+Training consumes episode JSONL produced by `llmpr-prepare-state` or
+`llmpr-prepare-pg19` and defaults to answer-only loss, with the optional prompt
+LM mixtures described above. A checkpoint contains every
+trainable parameter (LoRA and,
 when enabled, retention scorers), optimizer/scheduler state, all process RNGs,
 the named sampling generator, and counters. Resume rejects any config change.
 
@@ -175,11 +226,12 @@ uv run --locked llmpr-train --config configs/full-lm.json
 uv run --locked llmpr-train --config configs/full-lm.json --resume
 ```
 
-Policy strings are `full`, `swa:N`, `variable-swa:MIN-MAX`, `log:R+M`, and
-`scored:R+M`. Variable SWA samples one window independently for every training
-row and is evaluated using an explicit sweep of fixed `swa:N` policies. Scored
-retention assigns an immutable priority in each layer and uses an exact hard
-selection in the forward pass with a straight-through scorer gradient.
+Policy strings are `full`, `memento`, `swa:N`, `variable-swa:MIN-MAX`,
+`log:R+M`, and `scored:R+M`. Variable SWA samples one window independently for
+every training row and is evaluated using an explicit sweep of fixed `swa:N`
+policies. Scored retention assigns an immutable priority in each layer and uses
+an exact hard selection in the forward pass with a straight-through scorer
+gradient.
 
 ## Evaluation sweep
 

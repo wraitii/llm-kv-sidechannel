@@ -22,6 +22,15 @@ class StateEvent:
 
 
 @dataclass(frozen=True)
+class MemorySpan:
+    char_start: int
+    char_end: int
+    memory_index: int
+    placement: str
+    after_event_index: int | None = None
+
+
+@dataclass(frozen=True)
 class StateEpisode:
     example_id: str
     pair_id: str
@@ -35,6 +44,10 @@ class StateEpisode:
     difficulty: str = "natural"
     context_length: int | None = None
     support_to_answer_tokens: tuple[int, ...] = ()
+    memory_spans: tuple[MemorySpan, ...] = ()
+    memory_layout: str = "none"
+    memory_tokens_per_span: int = 0
+    memory_compression_ratio: int | None = None
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
