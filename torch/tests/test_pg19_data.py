@@ -143,3 +143,22 @@ def test_event_and_fixed_layouts_derive_from_one_byte_identical_base_episode():
     )
     assert remove_memory(fixed) == base
     assert fixed.memory_compression_ratio == 20
+
+
+@pytest.mark.parametrize("level", list(LEVELS))
+def test_paired_fit_requires_alignment_in_both_memory_layouts(level):
+    pair = fit_pair(
+        CharacterTokenizer(), TEXT, background_id="book", seed=41,
+        context_length=3000, builder=LEVELS[level], level=level,
+        memory_layout="fixed", memory_tokens_per_span=4, memory_token="¤",
+        memory_compression_ratio=20,
+        additional_alignment_layouts=("event",),
+    )
+    base = tuple(remove_memory(row) for row in pair)
+    event = tuple(inject_memory(
+        row, layout="event", tokens_per_span=4, memory_token="¤", seed=7960,
+    ) for row in base)
+    validate_counterfactual_pair(*[
+        tokenize_episode(CharacterTokenizer(), row, max_length=3000)
+        for row in event
+    ])

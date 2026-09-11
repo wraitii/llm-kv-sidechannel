@@ -220,6 +220,7 @@ def fit_pair(
     memory_tokens_per_span: int = 0,
     memory_token: str = "<|fim_pad|>",
     memory_compression_ratio: int = 20,
+    additional_alignment_layouts: tuple[str, ...] = (),
 ) -> tuple[StateEpisode, StateEpisode]:
     """Find the largest prefix whose complete prompt and answer fit the budget."""
     # Do not tokenize a multi-million-token book to construct one short row.
@@ -251,9 +252,10 @@ def fit_pair(
             inferred_level = level or ("passcode_hard" if builder is make_passcode_pair else "state")
             positions = insertion_positions(
                 tokenizer, background, level=inferred_level, seed=seed + attempt)
-            candidate = builder(
+            base_candidate = builder(
                 background, background_id=background_id, seed=seed + attempt,
                 insertion_char_positions=positions)
+            candidate = base_candidate
             if memory_layout != "none":
                 candidate = tuple(inject_memory(
                     row, layout=memory_layout,
@@ -268,6 +270,18 @@ def fit_pair(
             ]
             try:
                 validate_counterfactual_pair(*candidate_encoded)
+                for alignment_layout in additional_alignment_layouts:
+                    aligned = tuple(inject_memory(
+                        row, layout=alignment_layout,
+                        tokens_per_span=memory_tokens_per_span,
+                        memory_token=memory_token, seed=seed + attempt + 7919,
+                        tokenizer=tokenizer,
+                        compression_ratio=memory_compression_ratio,
+                    ) for row in base_candidate)
+                    validate_counterfactual_pair(*[
+                        tokenize_episode(tokenizer, row, max_length=10**12)
+                        for row in aligned
+                    ])
             except ValueError:
                 continue
             pair, encoded = candidate, candidate_encoded
@@ -397,6 +411,8 @@ def main() -> None:
                             memory_tokens_per_span=args.memory_tokens_per_span,
                             memory_token=args.memory_token,
                             memory_compression_ratio=args.memory_compression_ratio,
+                            additional_alignment_layouts=(
+                                ("event",) if args.memory_layout == "both" else ()),
                         )
                         pairs = {fit_layout: pair}
                         if args.memory_layout == "both":
