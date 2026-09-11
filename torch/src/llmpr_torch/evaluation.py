@@ -321,7 +321,11 @@ def load_episodes(path: Path) -> Iterable[StateEpisode]:
                 difficulty=row.get("difficulty", "natural"),
                 context_length=row.get("context_length"),
                 support_to_answer_tokens=tuple(row.get("support_to_answer_tokens", ())),
-                memory_spans=tuple(MemorySpan(**span) for span in row.get("memory_spans", ())),
+                memory_spans=tuple(MemorySpan(
+                    **{**span,
+                       "replacement_token_ids": tuple(span.get("replacement_token_ids", ())),
+                       "source_token_positions": tuple(span.get("source_token_positions", ()))},
+                ) for span in row.get("memory_spans", ())),
                 memory_layout=row.get("memory_layout", "none"),
                 memory_tokens_per_span=int(row.get("memory_tokens_per_span", 0)),
                 memory_compression_ratio=row.get("memory_compression_ratio"),

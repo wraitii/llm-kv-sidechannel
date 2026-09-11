@@ -30,7 +30,7 @@ LEVELS: dict[str, Callable[..., tuple[StateEpisode, StateEpisode]]] = {
     "natural": lambda text, **kw: make_counterfactual_pair(text, natural=True, **kw),
 }
 
-MEMORY_LAYOUTS = {"none", "event", "fixed"}
+MEMORY_LAYOUTS = {"none", "event", "fixed", "fixed-copy"}
 
 
 def _shift_event(event: StateEvent, insertions: list[tuple[int, str, int | None]],
@@ -77,6 +77,36 @@ def _fixed_ratio_memory_positions(
     return sorted(set(positions))
 
 
+def _fixed_stride_memory_positions(
+    episode: StateEpisode,
+    *,
+    tokenizer,
+    tokens_per_span: int,
+    compression_ratio: int,
+) -> list[int]:
+    """Place memories after complete fixed-size blocks, leaving a live tail."""
+    question = episode.prompt.rfind("\n\nQuestion:")
+    if question < 1:
+        raise ValueError("episode has no question boundary")
+    blocked = [(event.char_start, event.char_end) for event in episode.events]
+    offsets = tokenizer(
+        episode.prompt[:question], add_special_tokens=False,
+        return_offsets_mapping=True)["offset_mapping"]
+    interval = tokens_per_span * compression_ratio
+    positions = []
+    for target in range(interval, len(offsets) + 1, interval):
+        position = offsets[target - 1][1]
+        containing = next(((start, end) for start, end in blocked
+                           if start < position < end), None)
+        if containing is not None:
+            # Do not split a task event or shift the global stride phase.
+            # Skipping this boundary makes the next block an integer multiple
+            # of the nominal interval and preserves its fixed-phase samples.
+            continue
+        positions.append(position)
+    return sorted(set(positions))
+
+
 def inject_memory(
     episode: StateEpisode,
     *,
@@ -102,11 +132,11 @@ def inject_memory(
     else:
         if tokenizer is None:
             raise ValueError("fixed-ratio memory placement requires a tokenizer")
-        insertions = [(position, "fixed", None) for position in
-                      _fixed_ratio_memory_positions(
-                          episode, tokenizer=tokenizer,
-                          tokens_per_span=tokens_per_span,
-                          compression_ratio=compression_ratio)]
+        position_fn = (_fixed_stride_memory_positions
+                       if layout == "fixed-copy" else _fixed_ratio_memory_positions)
+        insertions = [(position, layout, None) for position in position_fn(
+            episode, tokenizer=tokenizer, tokens_per_span=tokens_per_span,
+            compression_ratio=compression_ratio)]
     insertions.sort()
     token_text = memory_token * tokens_per_span
     rendered = f"\n\n{token_text}\n\n"
@@ -114,16 +144,47 @@ def inject_memory(
     chunks = []
     spans = []
     cursor = 0
+    source_encoding = None
+    if layout == "fixed-copy":
+        if tokenizer is None:
+            raise ValueError("fixed-copy memory placement requires a tokenizer")
+        if tokens_per_span < 2:
+            raise ValueError("fixed-copy requires a sentinel and at least one copied token")
+        source_encoding = tokenizer(
+            episode.prompt, add_special_tokens=False, return_offsets_mapping=True)
+        sentinel = tokenizer(memory_token, add_special_tokens=False)["input_ids"]
+        if len(sentinel) != 1:
+            raise ValueError("memory sentinel must encode to exactly one token")
+    previous_position = 0
+    phase_rng = np.random.Generator(np.random.PCG64(seed))
     for memory_index, (position, placement, after_event) in enumerate(insertions):
         chunks.append(episode.prompt[cursor:position])
         base = sum(map(len, chunks))
         chunks.append(rendered)
+        replacements: tuple[int, ...] = ()
+        source_positions: tuple[int, ...] = ()
+        span_phase = None
+        if source_encoding is not None:
+            eligible = [index for index, (start, end) in enumerate(
+                        source_encoding["offset_mapping"])
+                        if start >= previous_position and end <= position]
+            span_phase = int(phase_rng.integers(compression_ratio))
+            selected = eligible[span_phase::compression_ratio][:tokens_per_span - 1]
+            if len(selected) != tokens_per_span - 1:
+                raise ValueError("ordinary block is too short for fixed-copy memory")
+            source_positions = tuple(selected)
+            replacements = (sentinel[0], *(source_encoding["input_ids"][i]
+                                             for i in selected))
         spans.append(MemorySpan(
             char_start=base + 2, char_end=base + 2 + len(token_text),
             memory_index=memory_index, placement=placement,
             after_event_index=after_event,
+            replacement_token_ids=replacements,
+            source_token_positions=source_positions,
+            copy_phase=span_phase,
         ))
         cursor = position
+        previous_position = position
     chunks.append(episode.prompt[cursor:])
     suffix = f"-memory-{layout}-{tokens_per_span}"
     return replace(
@@ -136,7 +197,8 @@ def inject_memory(
         memory_spans=tuple(spans),
         memory_layout=layout,
         memory_tokens_per_span=tokens_per_span,
-        memory_compression_ratio=(compression_ratio if layout == "fixed" else None),
+        memory_compression_ratio=(compression_ratio
+                                  if layout in {"fixed", "fixed-copy"} else None),
     )
 
 
@@ -458,6 +520,8 @@ def main() -> None:
         "memory_token": args.memory_token,
         "memory_token_id": None if memory_token_ids is None else memory_token_ids[0],
         "memory_compression_ratio": args.memory_compression_ratio,
+        "memory_copy_phase": ("seeded-per-block"
+                              if args.memory_layout == "fixed-copy" else None),
         "paired_layout_fit_slack": 16 if args.memory_layout == "both" else 0,
         "seed": args.seed, "splits": totals,
     }

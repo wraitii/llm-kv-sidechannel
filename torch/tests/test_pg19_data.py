@@ -92,7 +92,7 @@ def test_passcode_levels_are_labeled_separately(level):
 
 
 @pytest.mark.parametrize("level", list(LEVELS))
-@pytest.mark.parametrize("layout", ["event", "fixed"])
+@pytest.mark.parametrize("layout", ["event", "fixed", "fixed-copy"])
 def test_memory_layouts_are_aligned(level, layout):
     pair = fit_pair(
         CharacterTokenizer(), TEXT, background_id="book", seed=17,
@@ -103,13 +103,19 @@ def test_memory_layouts_are_aligned(level, layout):
     encoded = [tokenize_episode(CharacterTokenizer(), row, max_length=3072)
                for row in pair]
     validate_counterfactual_pair(*encoded)
+    if layout == "fixed-copy":
+        assert tuple(span.copy_phase for span in pair[0].memory_spans) == tuple(
+            span.copy_phase for span in pair[1].memory_spans)
+        assert len({span.copy_phase for span in pair[0].memory_spans}) > 1
     for row, tokenized in zip(pair, encoded, strict=True):
         assert row.memory_layout == layout
         if layout == "event":
             assert len(row.memory_spans) == len(row.events)
-        else:
+        elif layout == "fixed":
             assert row.memory_compression_ratio == 20
             assert row.memory_spans[-1].char_start > row.events[-1].char_end
+        else:
+            assert row.memory_compression_ratio == 20
         assert len(tokenized.memory_token_spans) == len(row.memory_spans)
         assert all(end - start + 1 == 4 for start, end in tokenized.memory_token_spans)
         assert all(row.prompt[span.char_start:span.char_end] == "¤" * 4
@@ -121,6 +127,19 @@ def test_memory_layouts_are_aligned(level, layout):
                        for event, span in zip(row.events, row.memory_spans, strict=True))
         else:
             assert all(span.after_event_index is None for span in row.memory_spans)
+        if layout == "fixed-copy":
+            assert all(len(span.replacement_token_ids) == 4 for span in row.memory_spans)
+            assert all(len(span.source_token_positions) == 3 for span in row.memory_spans)
+            assert all(span.copy_phase is not None and 0 <= span.copy_phase < 20
+                       for span in row.memory_spans)
+            assert all(tuple(right - left for left, right in zip(
+                span.source_token_positions, span.source_token_positions[1:])) == (20, 20)
+                for span in row.memory_spans)
+            assert all(span.replacement_token_ids[0] == ord("¤")
+                       for span in row.memory_spans)
+            for span, (start, end) in zip(
+                    row.memory_spans, tokenized.memory_token_spans, strict=True):
+                assert tokenized.input_ids[start:end + 1] == span.replacement_token_ids
 
 
 def test_memory_layout_none_preserves_episode():

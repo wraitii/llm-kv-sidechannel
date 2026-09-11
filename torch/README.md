@@ -60,11 +60,11 @@ runs per length avoid wasted padding during initial capacity measurements.
 
 ### Memento datasets and policies
 
-Memory spans repeat Qwen's single-token `<|fim_pad|>` and need no block markers.
-The `event` layout inserts one span after each task update. The task-agnostic
-`fixed` control partitions the prompt at a configured compression ratio and
-adds a final span before the question. Generate both from byte-identical base
-episodes with:
+Ordinary memory spans repeat Qwen's single-token `<|fim_pad|>` and need no
+block markers. The `event` layout inserts one span after each task update. The
+task-agnostic `fixed` control partitions the prompt at a configured compression
+ratio and adds a final span before the question. Generate both from
+byte-identical base episodes with:
 
 ```bash
 uv run llmpr-prepare-pg19 \
@@ -81,6 +81,27 @@ memory layout, compression setting, and exact character spans; tokenization
 derives the corresponding inclusive token spans. The fixed layout targets
 `memory_tokens_per_span * memory_compression_ratio` ordinary tokens per block,
 so 16 and 20 give approximately 320-token blocks at any context length.
+
+The `fixed-copy` mode instead places memories only after complete 320-token
+blocks. Each 16-token span consists of one `<|fim_pad|>` sentinel followed by
+15 exact Qwen token IDs copied from that block. A separate phase `p_b` is
+sampled deterministically for every block and shared by its counterfactual
+variants; within block `b`, source offsets are `p_b, p_b+20, ..., p_b+280`.
+There is no per-token jitter and no episode-wide shared phase. The JSON prompt
+retains 16 `<|fim_pad|>` placeholders for stable span accounting; tokenization
+substitutes the latter 15 with the recorded exact token IDs, avoiding a lossy
+decode/re-encode. The final incomplete block stays as the live tail. Generate
+it with:
+
+```bash
+uv run llmpr-prepare-pg19 \
+  --model models/Qwen3-1.7B-Base \
+  --output-dir data/pg19-3000-memory-fixed-copy \
+  --context-lengths 3000 --train-books 256 \
+  --validation-books 50 --test-books 100 \
+  --memory-layout fixed-copy --memory-tokens-per-span 16 \
+  --memory-compression-ratio 20
+```
 
 For Memento-only training, use:
 

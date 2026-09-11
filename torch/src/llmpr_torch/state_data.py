@@ -28,6 +28,9 @@ class MemorySpan:
     memory_index: int
     placement: str
     after_event_index: int | None = None
+    replacement_token_ids: tuple[int, ...] = ()
+    source_token_positions: tuple[int, ...] = ()
+    copy_phase: int | None = None
 
 
 @dataclass(frozen=True)
